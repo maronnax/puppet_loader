@@ -1,0 +1,106 @@
+#! /usr/bin/env python
+
+"""Upload a program (directory of program+instructions to an ESP, either by ip address or by name."""
+
+__author__ = "nathan.addy@windfalltechnical.com"
+
+from pathlib import Path
+from argparse import ArgumentParser
+import subprocess
+import time
+import sys
+from puppet.network import get_puppetnet_ip_address, get_my_ip_address
+
+def main(program_path, puppet_name, puppetnet_host):
+    program_path = Path(program_path)
+    program = program_path.name
+    program_file = program_path/(program+".txt")
+
+    audio_file = None
+
+    non_animation_files = [x for x in program_path.glob('*') if not x.name.startswith(".") and not x.name == f"{program}.txt"]
+    if len(non_animation_files) == 1:
+        audio_file = non_animation_files[0]
+    elif len(non_animation_files) == 0:
+        pass
+    else:
+        print("Multiple possible audio files: {','.join(non_animation_files)}")
+
+    assert program_file.exists()
+    print(f"Looking for host {puppetnet_host}")
+    result = get_puppetnet_ip_address(puppet_name, host=puppetnet_host)
+    dest_ip = result["ip"]
+    myip = get_my_ip_address()
+
+    dest_subnet = ".".join(dest_ip.split(".")[:3])
+    my_subnet = ".".join(myip.split(".")[:3])
+
+
+    if dest_subnet != my_subnet:
+        print("Not on the same network.  You're probably on local wifi and need to be on puppetnet")
+        sys.exit(1)
+
+    print("Delete animation if it already exists.");
+
+    curl_animation_delete_command = [
+        "curl",
+        "-F",
+        f"file=@{program_file}",
+        f"http://{dest_ip}/delete?program={program}",
+    ]
+
+    print("Running command:")
+    print('\t' + ' '.join(curl_animation_delete_command))
+    subprocess.run(curl_animation_delete_command)
+
+    print(f"Sending program {program} to {dest_ip}")
+    curl_animation_upload_command = [
+        "curl",
+        "-F",
+        f"file=@{program_file}",
+        f"http://{dest_ip}/upload?program={program}&type=animation",
+    ]
+
+    print("Running command:")
+    print('\t' + ' '.join(curl_animation_upload_command))
+
+    start_time = time.time()
+    subprocess.run(curl_animation_upload_command)
+    if audio_file:
+        curl_audio_upload_command = [
+            "curl",
+            "-F",
+            f"file=@{audio_file}",
+            f"http://{dest_ip}/upload?program={program}&type=audio",
+        ]
+
+        print("Running command:")
+        print('\t' + ' '.join(curl_audio_upload_command))
+
+        subprocess.run(curl_audio_upload_command)
+    end_time = time.time()
+
+    file_size = program_file.stat().st_size / 1024
+
+    if audio_file:
+        file_size += audio_file.stat().st_size / 1024
+
+    upload_rate = file_size/(end_time-start_time)
+    print(f"Done in {end_time-start_time:.1f} seconds.")
+    print(f"{file_size:.1f}kB at {upload_rate:.1f}kB/sec")
+
+    return
+
+if __name__ == "__main__":
+
+    myip = get_my_ip_address()
+    host = '192.168.4.1' if '.4.' in myip else '192.168.1.186'
+    host = '192.168.4.1'
+
+    arg_parser = ArgumentParser()
+    arg_parser.add_argument('program_path')
+    arg_parser.add_argument('--puppetnet-dest', default="PUPPET_01")
+    arg_parser.add_argument('--puppetnet-host', default=host)
+    args = arg_parser.parse_args()
+
+    main(args.program_path, args.puppetnet_dest, args.puppetnet_host)

@@ -1,0 +1,166 @@
+#! /usr/bin/env python
+
+__author__ = "nathan.addy@windfalltechnical.com"
+
+import json
+from argparse import ArgumentParser
+from collections import deque
+from pathlib import Path
+import shutil
+import sys
+import csv
+import subprocess
+import time
+import itertools
+import struct
+import io
+from puppet.network import get_puppetnet_ip_address, get_my_ip_address
+
+FRAMES_PER_SECOND = 10
+MILLISECONDS_PER_FRAME = 1000 / FRAMES_PER_SECOND
+MICROSECONDS_PER_FRAME = MILLISECONDS_PER_FRAME * 1000
+
+def update_and_return(d, **kwds):
+    dd = d.copy()
+    dd.update(**kwds)
+    return dd
+
+def serialize_list_of_lists_to_buffer(list_of_lists):
+    import io
+    import struct
+
+    buffer = io.BytesIO()
+    # Write the number of lists (unsigned int, 4 bytes)
+    buffer.write(struct.pack("<I", len(list_of_lists)))
+    for sublist in list_of_lists:
+        # Write the length of the sublist
+        buffer.write(struct.pack("<I", len(sublist)))
+        # Write each float in little-endian format
+        for number in sublist:
+            buffer.write(struct.pack("<f", number))
+    return buffer
+
+
+def make_animation_servo_output_func(low_anim, high_anim, low_servo, high_servo):
+    return lambda a: int(low_servo + (a - low_anim) * (high_servo - low_servo) / (high_anim - low_anim))
+
+
+def main(output_program, input_fn, audio_fn,
+         low_anim, low_servo, high_anim, high_servo,
+         force, input_frame_rate, insert_frames):
+
+    print(f"Loading animation file {input_fn}...")
+    input_data = open(input_fn).read()
+    data = json.loads(input_data)
+    servos = list(data["servos"].keys())
+    if len(servos) == 1 and servos[0] != "servoHorn_00":
+        servo_name = servos[0]
+        input_data = input_data.replace(servo_name, "servoHorn_00")
+        data = json.loads(input_data)
+
+    print("Compiling to maestro program...")
+    f = make_animation_servo_output_func(low_anim, high_anim, low_servo, high_servo)
+
+    if not input_frame_rate:
+        input_frame_rate = data["frames_per_second"]
+
+    seconds_per_frame = 1/input_frame_rate
+    milliseconds_per_frame = 1000 * seconds_per_frame
+    microseconds_per_frame = 1000 * milliseconds_per_frame
+
+
+
+    history = data["history"]
+    if insert_frames > 0:
+        history = [
+            {"frame": ndx, "servos": history[0]["servos"]}
+            for ndx in range(1, insert_frames + 1)
+        ] + list(
+            map(
+                lambda d: update_and_return(d, frame=d["frame"] + insert_frames),
+                history,
+            )
+        )
+    elif insert_frames < 0:
+        raise Exception("Not implemented yet.")
+
+    frames = []
+    for frame_dict in history:
+        frames.append({
+            "microseconds": frame_dict["frame"] * microseconds_per_frame,
+            "servo_positions": [ (int(k.split("_")[-1]), f(v['servo'])) for k,v in frame_dict["servos"].items()],
+        })
+
+    compact = [[int(f["microseconds"]/1000.0), *list(itertools.chain.from_iterable(f['servo_positions']))] for f in frames]
+
+    csv_output = io.StringIO()
+    writer = csv.writer(csv_output)
+    writer.writerows(compact)
+
+    output_program = Path(output_program)
+    container_dir = output_program.resolve().parent
+
+    program_name = output_program.name
+
+    if not (container_dir.exists() and container_dir.is_dir()):
+        raise ValueError(f"Container {container_dir} does not exist.")
+
+    if output_program.exists():
+        if not force:
+            raise ValueError(f"Program {program_name} already exists.  Run with --force.")
+        else:
+            shutil.rmtree(output_program)
+            print(f"Deleted {program_name}.")
+
+    output_program.mkdir(parents=False, exist_ok=False)
+
+    compilation_file = output_program / (program_name + ".txt")
+    print(f"Writing output file {compilation_file}")
+    with open(compilation_file, 'w') as outf:
+        outf.write(csv_output.getvalue())
+
+    if audio_fn is not None:
+        audio_fn = Path(audio_fn)
+        print(f"Copying audio file {audio_fn} into program.")
+        shutil.copy(audio_fn, output_program / audio_fn.name)
+    else:
+        print("No audio file provided.")
+
+    print("Done.")
+    return
+
+if __name__ == "__main__":
+
+    arg_parser = ArgumentParser()
+    arg_parser.add_argument('input_names', nargs="+")
+    arg_parser.add_argument('--map-low', default="0:0")
+    arg_parser.add_argument('--map-high', default="1:1")
+    arg_parser.add_argument('--audio-file')
+    arg_parser.add_argument('--frame-rate', type=int, default=None)
+    arg_parser.add_argument('--insert-frames', type=int, default=0)
+    arg_parser.add_argument('--delete-frames', type=int, default=0)
+    arg_parser.add_argument('--force', default=False, action="store_true")
+
+    args = arg_parser.parse_args()
+
+    if len(args.input_names) == 2:
+        input_fn, output_fn = args.input_names
+        audio_fn = None
+    elif len(args.input_names) == 3:
+        input_fn, audio_fn, output_fn = args.input_names
+
+    low_anim, low_servo = map(int, args.map_low.split(":"))
+    high_anim, high_servo = map(int, args.map_high.split(":"))
+
+    main(
+        output_fn,
+        input_fn,
+        audio_fn,
+        low_anim,
+        low_servo,
+        high_anim,
+        high_servo,
+        args.force,
+        args.frame_rate,
+        args.insert_frames,
+    )
