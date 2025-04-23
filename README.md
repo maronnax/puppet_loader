@@ -100,3 +100,35 @@ and the last line will read
 3. Follow-up with Bird. Make sure that he is aware and has all new and
    latest versions of the animations because he is reposible for the
    "inputs" directory and the animation loadouts.
+
+
+## Emergency modification for Animations
+
+    If in the heat of battle a servo playback isn't matching the audio precisely,
+    you can adjust this on import as an emergency measure as you wait for the real
+    fixes from the animation department.
+
+
+    Look in the Makefile for the line `outputs/programs/PROGRAM`.  For example,
+
+    ```
+    outputs/programs/aloha: inputs/aloha/aloha.mp3
+    $(PYTHON) ./bin/compile-animation inputs/aloha/aloha.json \
+        inputs/aloha/aloha.mp3 \
+        outputs/programs/aloha \
+        --force --frame-rate 24
+    ```
+
+    Add a line to this like so
+    ```
+    outputs/programs/aloha: inputs/aloha/aloha.mp3
+    $(PYTHON) ./bin/compile-animation inputs/aloha/aloha.json \
+        inputs/aloha/aloha.mp3 \
+        outputs/programs/aloha \
+        --force --frame-rate 24 \
+        --insert-frames 3
+    ```
+
+    This will cause the animation to begin 3 frames late (at 24fps).  By continually
+    adjusting this value while repeatedly running `make aloha-demo`, you can quickly
+    test/visualize the result of tiny tweaks to startup sync to be performed as needed.
