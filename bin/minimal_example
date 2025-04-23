@@ -17,6 +17,9 @@ class PlottedCurve:
         self._x = np.array(x) if x is not None else np.array([])
         self._y = np.array(y) if y is not None else np.array([])
 
+        self.undo_stack = []
+        self.redo_stack = []
+
     @property
     def x(self):
         return self._x
@@ -36,9 +39,35 @@ class PlottedCurve:
     def get_data(self):
         return self._x, self._y
 
-    def set_data(self, x, y):
+    def set_data(self, x, y, record_undo=True):
+        if record_undo:
+            self.undo_stack.append((self._x.copy(), self._y.copy()))
+            self.redo_stack.clear()
         self._x = np.array(x)
         self._y = np.array(y)
+
+    def undo(self):
+        print("Undo stack size:", len(self.undo_stack))
+        print("Redo stack size:", len(self.redo_stack))
+
+        if not self.undo_stack:
+            return False
+        self.redo_stack.append((self._x.copy(), self._y.copy()))
+        self._x, self._y = self.undo_stack.pop()
+        print("Undo stack size:", len(self.undo_stack))
+        print("Redo stack size:", len(self.redo_stack))
+
+
+        return True
+
+    def redo(self):
+        if not self.redo_stack:
+            return False
+        self.undo_stack.append((self._x.copy(), self._y.copy()))
+        self._x, self._y = self.redo_stack.pop()
+        return True
+
+
 
     def __len__(self):
         return len(self._x)
@@ -81,13 +110,33 @@ class MplGraphCanvas(FigureCanvas):
         return
 
     def key_press_event(self, event):
-        if event.text().lower() == 's' and self.mode != "select":
+        text = event.text().lower()
+        if text == 's' and self.mode != "select":
             self.mode = "select"
             self.selector.set_active(True)
+        elif text == 'q':
+            if self.curve.undo():
+                self.update_curve()
+                self.draw_idle()
+                self.setFocus()
+        elif text == 'e':
+            if self.curve.redo():
+                self.update_curve()
+                self.draw_idle()
+                self.setFocus()
         return
 
+    def update_curve(self):
+        self.line.set_data(self.curve.x, self.curve.y)
+        self.ax.relim()
+        self.ax.autoscale_view(scalex=True, scaley=False)
+        self.ax.set_ylim(4000, 8000)
+        self.update_control_display()
+        self.draw_idle()
+
     def key_release_event(self, event):
-        if event.text().lower() == 's' and self.mode == "select":
+        text = event.text().lower()
+        if text == 's' and self.mode == "select":
             self.mode = "click"
             self.selector.set_active(False)
         return
@@ -130,8 +179,10 @@ class MplGraphCanvas(FigureCanvas):
         x_click = event.xdata
         idx = np.argmin(np.abs(self.curve.x - x_click))
         self.dragging = idx
+        self.undo_pending = True  # record undo once on first drag
         self.last_drag_y = event.ydata
         self.update_control_display()
+        return
 
 
     def on_drag(self, event):
@@ -144,18 +195,23 @@ class MplGraphCanvas(FigureCanvas):
         dy = event.ydata - self.last_drag_y
         self.last_drag_y = event.ydata
 
+        # Save current state for undo before applying changes
+
+        if getattr(self, "undo_pending", True):
+            self.curve.set_data(self.curve.x.copy(), self.curve.y.copy(), record_undo=True)
+            self.undo_pending = False
+
         if self.dragging in self.selected_indices:
-            # Group drag
             for i in self.selected_indices:
                 self.curve.y[i] += dy
         else:
-            # Single drag
             self.curve.y[self.dragging] = event.ydata
 
         self.line.set_ydata(self.curve.y)
         self.update_control_display()
         self.draw_idle()
         return
+
 
     def on_release(self, event):
         if self.mode == "click":
@@ -229,14 +285,22 @@ class MainWindow(QMainWindow):
         self.canvas.curve.x = frames
         self.canvas.curve.y = values
         self.canvas.line.set_data(self.canvas.curve.x, self.canvas.curve.y)
-        self.canvas.ax.relim()
-        self.canvas.ax.autoscale_view()
+        self.update_view()
+
         self.canvas.control_indices = []
         self.canvas.update_control_display()
         self.canvas.draw_idle()
         self.canvas.set_draggable_points()
         print(f"Loaded from {fname}")
         return
+
+    def update_view(self):
+        self.canvas.ax.relim()
+        self.canvas.ax.autoscale_view(scalex=True, scaley=False)
+        self.canvas.ax.set_ylim(4000, 8000)
+        return
+
+
 
 
     def load_from_csv(self):
