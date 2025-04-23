@@ -7,7 +7,7 @@ This code is designed to run on OSX or Linux systems.
 This should run nearly out of the box.
 
 If you are on OSX, you will have to install brew (follow the
-instructions here) if it is not already installed (type `brew -v` on
+instructions here: https://brew.sh/) if it is not already installed (type `brew -v` on
 the command line; if that works you're good).
 
 Otherwise you will have to make sure the 'ffmpeg' is installed in your command line - it should be readily available.
