@@ -8,6 +8,8 @@ install:
 	.venv/bin/pip install ipython
 	.venv/bin/pip install emacsipython
 	.venv/bin/pip install -e .
+	mkdir -p inputs
+	mkdir -p outputs/programs
 
 
 .PHONY: all
@@ -16,12 +18,12 @@ all: $(PROGRAM_DIRS)
 all-demos: $(DEMO_TARGETS)
 all-uploads: $(UPLOAD_TARGETS)
 
-outputs/andy-animations/aloha/aloha.mp3: outputs/andy-animations/aloha/aloha.wav
+inputs/aloha/aloha.mp3: inputs/aloha/aloha.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/aloha: outputs/andy-animations/aloha/aloha.mp3
-	./bin/compile-animation outputs/andy-animations/aloha/aloha.json \
-		outputs/andy-animations/aloha/aloha.mp3 \
+outputs/programs/aloha: inputs/aloha/aloha.mp3
+	./bin/compile-animation inputs/aloha/aloha.json \
+		inputs/aloha/aloha.mp3 \
 		outputs/programs/aloha \
 		--force --frame-rate 24 \
 		--insert-frames 5
@@ -33,12 +35,12 @@ aloha-demo: aloha-upload
 aloha-upload: outputs/programs/aloha
 	./bin/upload-program outputs/programs/aloha
 
-outputs/andy-animations/bye_bye_1/bye_bye_1.mp3: outputs/andy-animations/bye_bye_1/bye_bye_1.wav
+inputs/bye_bye_1/bye_bye_1.mp3: inputs/bye_bye_1/bye_bye_1.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/bye_bye_1: outputs/andy-animations/bye_bye_1/bye_bye_1.mp3
-	./bin/compile-animation outputs/andy-animations/bye_bye_1/bye_bye_1.json \
-		outputs/andy-animations/bye_bye_1/bye_bye_1.mp3 \
+outputs/programs/bye_bye_1: inputs/bye_bye_1/bye_bye_1.mp3
+	./bin/compile-animation inputs/bye_bye_1/bye_bye_1.json \
+		inputs/bye_bye_1/bye_bye_1.mp3 \
 		outputs/programs/bye_bye_1 \
 		--force --frame-rate 24
 
@@ -49,12 +51,12 @@ bye_bye_1-demo: bye_bye_1-upload
 bye_bye_1-upload: outputs/programs/bye_bye_1
 	bin/upload-program outputs/programs/bye_bye_1
 
-outputs/andy-animations/bye_bye_2/bye_bye_2.mp3: outputs/andy-animations/bye_bye_2/bye_bye_2.wav
+inputs/bye_bye_2/bye_bye_2.mp3: inputs/bye_bye_2/bye_bye_2.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/bye_bye_2: outputs/andy-animations/bye_bye_2/bye_bye_2.mp3
-	./bin/compile-animation outputs/andy-animations/bye_bye_2/bye_bye_2.json \
-		outputs/andy-animations/bye_bye_2/bye_bye_2.mp3 \
+outputs/programs/bye_bye_2: inputs/bye_bye_2/bye_bye_2.mp3
+	./bin/compile-animation inputs/bye_bye_2/bye_bye_2.json \
+		inputs/bye_bye_2/bye_bye_2.mp3 \
 		outputs/programs/bye_bye_2 \
 		--force --frame-rate 24 \
 
@@ -66,12 +68,12 @@ bye_bye_2-upload: outputs/programs/bye_bye_2
 	bin/upload-program outputs/programs/bye_bye_2
 
 
-outputs/andy-animations/candy_popcorn/candy_popcorn.mp3: outputs/andy-animations/candy_popcorn/candy_popcorn.wav
+inputs/candy_popcorn/candy_popcorn.mp3: inputs/candy_popcorn/candy_popcorn.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/candy_popcorn: outputs/andy-animations/candy_popcorn/candy_popcorn.mp3
-	./bin/compile-animation outputs/andy-animations/candy_popcorn/candy_popcorn.json \
-		outputs/andy-animations/candy_popcorn/candy_popcorn.mp3 \
+outputs/programs/candy_popcorn: inputs/candy_popcorn/candy_popcorn.mp3
+	./bin/compile-animation inputs/candy_popcorn/candy_popcorn.json \
+		inputs/candy_popcorn/candy_popcorn.mp3 \
 		outputs/programs/candy_popcorn \
 		--force --frame-rate 24 \
 
@@ -81,12 +83,12 @@ candy_popcorn-demo: candy_popcorn-upload
 
 candy_popcorn-upload: outputs/programs/candy_popcorn
 	bin/upload-program outputs/programs/candy_popcorn
-outputs/andy-animations/gimme_gimme/gimme_gimme.mp3: outputs/andy-animations/gimme_gimme/gimme_gimme.wav
+inputs/gimme_gimme/gimme_gimme.mp3: inputs/gimme_gimme/gimme_gimme.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/gimme_gimme: outputs/andy-animations/gimme_gimme/gimme_gimme.mp3
-	./bin/compile-animation outputs/andy-animations/gimme_gimme/gimme_gimme.json \
-		outputs/andy-animations/gimme_gimme/gimme_gimme.mp3 \
+outputs/programs/gimme_gimme: inputs/gimme_gimme/gimme_gimme.mp3
+	./bin/compile-animation inputs/gimme_gimme/gimme_gimme.json \
+		inputs/gimme_gimme/gimme_gimme.mp3 \
 		outputs/programs/gimme_gimme \
 		--force --frame-rate 24 \
 
@@ -96,12 +98,12 @@ gimme_gimme-demo: gimme_gimme-upload
 
 gimme_gimme-upload: outputs/programs/gimme_gimme
 	bin/upload-program outputs/programs/gimme_gimme
-outputs/andy-animations/give_give/give_give.mp3: outputs/andy-animations/give_give/give_give.wav
+inputs/give_give/give_give.mp3: inputs/give_give/give_give.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/give_give: outputs/andy-animations/give_give/give_give.mp3
-	./bin/compile-animation outputs/andy-animations/give_give/give_give.json \
-		outputs/andy-animations/give_give/give_give.mp3 \
+outputs/programs/give_give: inputs/give_give/give_give.mp3
+	./bin/compile-animation inputs/give_give/give_give.json \
+		inputs/give_give/give_give.mp3 \
 		outputs/programs/give_give \
 		--force --frame-rate 24 \
 
@@ -112,12 +114,12 @@ give_give-demo: give_give-upload
 give_give-upload: outputs/programs/give_give
 	bin/upload-program outputs/programs/give_give
 
-outputs/andy-animations/heh_woo_snacks/heh_woo_snacks.mp3: outputs/andy-animations/heh_woo_snacks/heh_woo_snacks.wav
+inputs/heh_woo_snacks/heh_woo_snacks.mp3: inputs/heh_woo_snacks/heh_woo_snacks.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/heh_woo_snacks: outputs/andy-animations/heh_woo_snacks/heh_woo_snacks.mp3
-	./bin/compile-animation outputs/andy-animations/heh_woo_snacks/heh_woo_snacks.json \
-		outputs/andy-animations/heh_woo_snacks/heh_woo_snacks.mp3 \
+outputs/programs/heh_woo_snacks: inputs/heh_woo_snacks/heh_woo_snacks.mp3
+	./bin/compile-animation inputs/heh_woo_snacks/heh_woo_snacks.json \
+		inputs/heh_woo_snacks/heh_woo_snacks.mp3 \
 		outputs/programs/heh_woo_snacks \
 		--force --frame-rate 24 \
 
@@ -128,12 +130,12 @@ heh_woo_snacks-demo: heh_woo_snacks-upload
 heh_woo_snacks-upload: outputs/programs/heh_woo_snacks
 	bin/upload-program outputs/programs/heh_woo_snacks
 
-outputs/andy-animations/here_we_go/here_we_go.mp3: outputs/andy-animations/here_we_go/here_we_go.wav
+inputs/here_we_go/here_we_go.mp3: inputs/here_we_go/here_we_go.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/here_we_go: outputs/andy-animations/here_we_go/here_we_go.mp3
-	./bin/compile-animation outputs/andy-animations/here_we_go/here_we_go.json \
-		outputs/andy-animations/here_we_go/here_we_go.mp3 \
+outputs/programs/here_we_go: inputs/here_we_go/here_we_go.mp3
+	./bin/compile-animation inputs/here_we_go/here_we_go.json \
+		inputs/here_we_go/here_we_go.mp3 \
 		outputs/programs/here_we_go \
 		--force --frame-rate 24 \
 
@@ -143,12 +145,12 @@ here_we_go-demo: here_we_go-upload
 
 here_we_go-upload: outputs/programs/here_we_go
 	bin/upload-program outputs/programs/here_we_go
-outputs/andy-animations/hurry_hurry_take_my_picture/hurry_hurry_take_my_picture.mp3: outputs/andy-animations/hurry_hurry_take_my_picture/hurry_hurry_take_my_picture.wav
+inputs/hurry_hurry_take_my_picture/hurry_hurry_take_my_picture.mp3: inputs/hurry_hurry_take_my_picture/hurry_hurry_take_my_picture.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/hurry_hurry_take_my_picture: outputs/andy-animations/hurry_hurry_take_my_picture/hurry_hurry_take_my_picture.mp3
-	./bin/compile-animation outputs/andy-animations/hurry_hurry_take_my_picture/hurry_hurry_take_my_picture.json \
-		outputs/andy-animations/hurry_hurry_take_my_picture/hurry_hurry_take_my_picture.mp3 \
+outputs/programs/hurry_hurry_take_my_picture: inputs/hurry_hurry_take_my_picture/hurry_hurry_take_my_picture.mp3
+	./bin/compile-animation inputs/hurry_hurry_take_my_picture/hurry_hurry_take_my_picture.json \
+		inputs/hurry_hurry_take_my_picture/hurry_hurry_take_my_picture.mp3 \
 		outputs/programs/hurry_hurry_take_my_picture \
 		--force --frame-rate 24 \
 
@@ -158,12 +160,12 @@ hurry_hurry_take_my_picture-demo: hurry_hurry_take_my_picture-upload
 
 hurry_hurry_take_my_picture-upload: outputs/programs/hurry_hurry_take_my_picture
 	bin/upload-program outputs/programs/hurry_hurry_take_my_picture
-outputs/andy-animations/mahalo1/mahalo1.mp3: outputs/andy-animations/mahalo1/mahalo1.wav
+inputs/mahalo1/mahalo1.mp3: inputs/mahalo1/mahalo1.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/mahalo1: outputs/andy-animations/mahalo1/mahalo1.mp3
-	./bin/compile-animation outputs/andy-animations/mahalo1/mahalo1.json \
-		outputs/andy-animations/mahalo1/mahalo1.mp3 \
+outputs/programs/mahalo1: inputs/mahalo1/mahalo1.mp3
+	./bin/compile-animation inputs/mahalo1/mahalo1.json \
+		inputs/mahalo1/mahalo1.mp3 \
 		outputs/programs/mahalo1 \
 		--force --frame-rate 24 \
 
@@ -174,12 +176,12 @@ mahalo1-demo: mahalo1-upload
 mahalo1-upload: outputs/programs/mahalo1
 	bin/upload-program outputs/programs/mahalo1
 
-outputs/andy-animations/mahalo2/mahalo2.mp3: outputs/andy-animations/mahalo2/mahalo2.wav
+inputs/mahalo2/mahalo2.mp3: inputs/mahalo2/mahalo2.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/mahalo2: outputs/andy-animations/mahalo2/mahalo2.mp3
-	./bin/compile-animation outputs/andy-animations/mahalo2/mahalo2.json \
-		outputs/andy-animations/mahalo2/mahalo2.mp3 \
+outputs/programs/mahalo2: inputs/mahalo2/mahalo2.mp3
+	./bin/compile-animation inputs/mahalo2/mahalo2.json \
+		inputs/mahalo2/mahalo2.mp3 \
 		outputs/programs/mahalo2 \
 		--force --frame-rate 24 \
 		--insert-frames 5
@@ -191,12 +193,12 @@ mahalo2-demo: mahalo2-upload
 mahalo2-upload: outputs/programs/mahalo2
 	bin/upload-program outputs/programs/mahalo2
 
-outputs/andy-animations/ohh_stitch_needs_popcorn/ohh_stitch_needs_popcorn.mp3: outputs/andy-animations/ohh_stitch_needs_popcorn/ohh_stitch_needs_popcorn.wav
+inputs/ohh_stitch_needs_popcorn/ohh_stitch_needs_popcorn.mp3: inputs/ohh_stitch_needs_popcorn/ohh_stitch_needs_popcorn.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/ohh_stitch_needs_popcorn: outputs/andy-animations/ohh_stitch_needs_popcorn/ohh_stitch_needs_popcorn.mp3
-	./bin/compile-animation outputs/andy-animations/ohh_stitch_needs_popcorn/ohh_stitch_needs_popcorn.json \
-		outputs/andy-animations/ohh_stitch_needs_popcorn/ohh_stitch_needs_popcorn.mp3 \
+outputs/programs/ohh_stitch_needs_popcorn: inputs/ohh_stitch_needs_popcorn/ohh_stitch_needs_popcorn.mp3
+	./bin/compile-animation inputs/ohh_stitch_needs_popcorn/ohh_stitch_needs_popcorn.json \
+		inputs/ohh_stitch_needs_popcorn/ohh_stitch_needs_popcorn.mp3 \
 		outputs/programs/ohh_stitch_needs_popcorn \
 		--force --frame-rate 24 \
 
@@ -208,12 +210,12 @@ ohh_stitch_needs_popcorn-upload: outputs/programs/ohh_stitch_needs_popcorn
 	bin/upload-program outputs/programs/ohh_stitch_needs_popcorn
 
 
-outputs/andy-animations/snacks1/snacks1.mp3: outputs/andy-animations/snacks1/snacks1.wav
+inputs/snacks1/snacks1.mp3: inputs/snacks1/snacks1.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/snacks1: outputs/andy-animations/snacks1/snacks1.mp3
-	./bin/compile-animation outputs/andy-animations/snacks1/snacks1.json \
-		outputs/andy-animations/snacks1/snacks1.mp3 \
+outputs/programs/snacks1: inputs/snacks1/snacks1.mp3
+	./bin/compile-animation inputs/snacks1/snacks1.json \
+		inputs/snacks1/snacks1.mp3 \
 		outputs/programs/snacks1 \
 		--force --frame-rate 24 \
 
@@ -224,12 +226,12 @@ snacks1-demo: snacks1-upload
 snacks1-upload: outputs/programs/snacks1
 	bin/upload-program outputs/programs/snacks1
 
-outputs/andy-animations/snacks2/snacks2.mp3: outputs/andy-animations/snacks2/snacks2.wav
+inputs/snacks2/snacks2.mp3: inputs/snacks2/snacks2.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/snacks2: outputs/andy-animations/snacks2/snacks2.mp3
-	./bin/compile-animation outputs/andy-animations/snacks2/snacks2.json \
-		outputs/andy-animations/snacks2/snacks2.mp3 \
+outputs/programs/snacks2: inputs/snacks2/snacks2.mp3
+	./bin/compile-animation inputs/snacks2/snacks2.json \
+		inputs/snacks2/snacks2.mp3 \
 		outputs/programs/snacks2 \
 		--force --frame-rate 24 \
 
@@ -239,12 +241,12 @@ snacks2-demo: snacks2-upload
 
 snacks2-upload: outputs/programs/snacks2
 	bin/upload-program outputs/programs/snacks2
-outputs/andy-animations/snacks3/snacks3.mp3: outputs/andy-animations/snacks3/snacks3.wav
+inputs/snacks3/snacks3.mp3: inputs/snacks3/snacks3.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/snacks3: outputs/andy-animations/snacks3/snacks3.mp3
-	./bin/compile-animation outputs/andy-animations/snacks3/snacks3.json \
-		outputs/andy-animations/snacks3/snacks3.mp3 \
+outputs/programs/snacks3: inputs/snacks3/snacks3.mp3
+	./bin/compile-animation inputs/snacks3/snacks3.json \
+		inputs/snacks3/snacks3.mp3 \
 		outputs/programs/snacks3 \
 		--force --frame-rate 24 \
 
@@ -255,12 +257,12 @@ snacks3-demo: snacks3-upload
 snacks3-upload: outputs/programs/snacks3
 	bin/upload-program outputs/programs/snacks3
 
-outputs/andy-animations/stitch_made_himself_pretty/stitch_made_himself_pretty.mp3: outputs/andy-animations/stitch_made_himself_pretty/stitch_made_himself_pretty.wav
+inputs/stitch_made_himself_pretty/stitch_made_himself_pretty.mp3: inputs/stitch_made_himself_pretty/stitch_made_himself_pretty.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/stitch_made_himself_pretty: outputs/andy-animations/stitch_made_himself_pretty/stitch_made_himself_pretty.mp3
-	./bin/compile-animation outputs/andy-animations/stitch_made_himself_pretty/stitch_made_himself_pretty.json \
-		outputs/andy-animations/stitch_made_himself_pretty/stitch_made_himself_pretty.mp3 \
+outputs/programs/stitch_made_himself_pretty: inputs/stitch_made_himself_pretty/stitch_made_himself_pretty.mp3
+	./bin/compile-animation inputs/stitch_made_himself_pretty/stitch_made_himself_pretty.json \
+		inputs/stitch_made_himself_pretty/stitch_made_himself_pretty.mp3 \
 		outputs/programs/stitch_made_himself_pretty \
 		--force --frame-rate 24 \
 
@@ -271,12 +273,12 @@ stitch_made_himself_pretty-demo: stitch_made_himself_pretty-upload
 stitch_made_himself_pretty-upload: outputs/programs/stitch_made_himself_pretty
 	bin/upload-program outputs/programs/stitch_made_himself_pretty
 
-outputs/andy-animations/give_give_give_stitch_want_stitch_want/give_give_give_stitch_want_stitch_want.mp3: outputs/andy-animations/give_give_give_stitch_want_stitch_want/give_give_give_stitch_want_stitch_want.wav
+inputs/give_give_give_stitch_want_stitch_want/give_give_give_stitch_want_stitch_want.mp3: inputs/give_give_give_stitch_want_stitch_want/give_give_give_stitch_want_stitch_want.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/give_give_give_stitch_want_stitch_want: outputs/andy-animations/give_give_give_stitch_want_stitch_want/give_give_give_stitch_want_stitch_want.mp3
-	./bin/compile-animation outputs/andy-animations/give_give_give_stitch_want_stitch_want/give_give_give_stitch_want_stitch_want.json \
-		outputs/andy-animations/give_give_give_stitch_want_stitch_want/give_give_give_stitch_want_stitch_want.mp3 \
+outputs/programs/give_give_give_stitch_want_stitch_want: inputs/give_give_give_stitch_want_stitch_want/give_give_give_stitch_want_stitch_want.mp3
+	./bin/compile-animation inputs/give_give_give_stitch_want_stitch_want/give_give_give_stitch_want_stitch_want.json \
+		inputs/give_give_give_stitch_want_stitch_want/give_give_give_stitch_want_stitch_want.mp3 \
 		outputs/programs/give_give_give_stitch_want_stitch_want \
 		--force --frame-rate 24
 
@@ -288,12 +290,12 @@ give_give_give_stitch_want_stitch_want-upload: outputs/programs/give_give_give_s
 	bin/upload-program outputs/programs/give_give_give_stitch_want_stitch_want
 
 
-outputs/andy-animations/here_we_go_hee_hee/here_we_go_hee_hee.mp3: outputs/andy-animations/here_we_go_hee_hee/here_we_go_hee_hee.wav
+inputs/here_we_go_hee_hee/here_we_go_hee_hee.mp3: inputs/here_we_go_hee_hee/here_we_go_hee_hee.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/here_we_go_hee_hee: outputs/andy-animations/here_we_go_hee_hee/here_we_go_hee_hee.mp3
-	./bin/compile-animation outputs/andy-animations/here_we_go_hee_hee/here_we_go_hee_hee.json \
-		outputs/andy-animations/here_we_go_hee_hee/here_we_go_hee_hee.mp3 \
+outputs/programs/here_we_go_hee_hee: inputs/here_we_go_hee_hee/here_we_go_hee_hee.mp3
+	./bin/compile-animation inputs/here_we_go_hee_hee/here_we_go_hee_hee.json \
+		inputs/here_we_go_hee_hee/here_we_go_hee_hee.mp3 \
 		outputs/programs/here_we_go_hee_hee \
 		--force --frame-rate 24
 
@@ -304,12 +306,12 @@ here_we_go_hee_hee-demo: here_we_go_hee_hee-upload
 here_we_go_hee_hee-upload: outputs/programs/here_we_go_hee_hee
 	bin/upload-program outputs/programs/here_we_go_hee_hee
 
-outputs/andy-animations/stitch_needs_snacks/stitch_needs_snacks.mp3: outputs/andy-animations/stitch_needs_snacks/stitch_needs_snacks.wav
+inputs/stitch_needs_snacks/stitch_needs_snacks.mp3: inputs/stitch_needs_snacks/stitch_needs_snacks.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/stitch_needs_snacks: outputs/andy-animations/stitch_needs_snacks/stitch_needs_snacks.mp3
-	./bin/compile-animation outputs/andy-animations/stitch_needs_snacks/stitch_needs_snacks.json \
-		outputs/andy-animations/stitch_needs_snacks/stitch_needs_snacks.mp3 \
+outputs/programs/stitch_needs_snacks: inputs/stitch_needs_snacks/stitch_needs_snacks.mp3
+	./bin/compile-animation inputs/stitch_needs_snacks/stitch_needs_snacks.json \
+		inputs/stitch_needs_snacks/stitch_needs_snacks.mp3 \
 		outputs/programs/stitch_needs_snacks \
 		--force --frame-rate 24
 
@@ -320,12 +322,12 @@ stitch_needs_snacks-demo: stitch_needs_snacks-upload
 stitch_needs_snacks-upload: outputs/programs/stitch_needs_snacks
 	bin/upload-program outputs/programs/stitch_needs_snacks
 
-outputs/andy-animations/wee_fun_fun_fun/wee_fun_fun_fun.mp3: outputs/andy-animations/wee_fun_fun_fun/wee_fun_fun_fun.wav
+inputs/wee_fun_fun_fun/wee_fun_fun_fun.mp3: inputs/wee_fun_fun_fun/wee_fun_fun_fun.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/wee_fun_fun_fun: outputs/andy-animations/wee_fun_fun_fun/wee_fun_fun_fun.mp3
-	./bin/compile-animation outputs/andy-animations/wee_fun_fun_fun/wee_fun_fun_fun.json \
-		outputs/andy-animations/wee_fun_fun_fun/wee_fun_fun_fun.mp3 \
+outputs/programs/wee_fun_fun_fun: inputs/wee_fun_fun_fun/wee_fun_fun_fun.mp3
+	./bin/compile-animation inputs/wee_fun_fun_fun/wee_fun_fun_fun.json \
+		inputs/wee_fun_fun_fun/wee_fun_fun_fun.mp3 \
 		outputs/programs/wee_fun_fun_fun \
 		--force --frame-rate 24 \
 
@@ -336,12 +338,12 @@ wee_fun_fun_fun-demo: wee_fun_fun_fun-upload
 wee_fun_fun_fun-upload: outputs/programs/wee_fun_fun_fun
 	bin/upload-program outputs/programs/wee_fun_fun_fun
 
-outputs/andy-animations/wee_hee_hee_hee/wee_hee_hee_hee.mp3: outputs/andy-animations/wee_hee_hee_hee/wee_hee_hee_hee.wav
+inputs/wee_hee_hee_hee/wee_hee_hee_hee.mp3: inputs/wee_hee_hee_hee/wee_hee_hee_hee.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/wee_hee_hee_hee: outputs/andy-animations/wee_hee_hee_hee/wee_hee_hee_hee.mp3
-	./bin/compile-animation outputs/andy-animations/wee_hee_hee_hee/wee_hee_hee_hee.json \
-		outputs/andy-animations/wee_hee_hee_hee/wee_hee_hee_hee.mp3 \
+outputs/programs/wee_hee_hee_hee: inputs/wee_hee_hee_hee/wee_hee_hee_hee.mp3
+	./bin/compile-animation inputs/wee_hee_hee_hee/wee_hee_hee_hee.json \
+		inputs/wee_hee_hee_hee/wee_hee_hee_hee.mp3 \
 		outputs/programs/wee_hee_hee_hee \
 		--force --frame-rate 24 \
 
@@ -351,12 +353,12 @@ wee_hee_hee_hee-demo: wee_hee_hee_hee-upload
 
 wee_hee_hee_hee-upload: outputs/programs/wee_hee_hee_hee
 	bin/upload-program outputs/programs/wee_hee_hee_hee
-outputs/andy-animations/weeee/weeee.mp3: outputs/andy-animations/weeee/weeee.wav
+inputs/weeee/weeee.mp3: inputs/weeee/weeee.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/weeee: outputs/andy-animations/weeee/weeee.mp3
-	./bin/compile-animation outputs/andy-animations/weeee/weeee.json \
-		outputs/andy-animations/weeee/weeee.mp3 \
+outputs/programs/weeee: inputs/weeee/weeee.mp3
+	./bin/compile-animation inputs/weeee/weeee.json \
+		inputs/weeee/weeee.mp3 \
 		outputs/programs/weeee \
 		--force --frame-rate 24 \
 
@@ -368,12 +370,12 @@ weeee-upload: outputs/programs/weeee
 	bin/upload-program outputs/programs/weeee
 
 
-outputs/andy-animations/wee_hee_hee_fun/wee_hee_hee_fun.mp3: outputs/andy-animations/wee_hee_hee_fun/wee_hee_hee_fun.wav
+inputs/wee_hee_hee_fun/wee_hee_hee_fun.mp3: inputs/wee_hee_hee_fun/wee_hee_hee_fun.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/wee_hee_hee_fun: outputs/andy-animations/wee_hee_hee_fun/wee_hee_hee_fun.mp3
-	./bin/compile-animation outputs/andy-animations/wee_hee_hee_fun/wee_hee_hee_fun.json \
-		outputs/andy-animations/wee_hee_hee_fun/wee_hee_hee_fun.mp3 \
+outputs/programs/wee_hee_hee_fun: inputs/wee_hee_hee_fun/wee_hee_hee_fun.mp3
+	./bin/compile-animation inputs/wee_hee_hee_fun/wee_hee_hee_fun.json \
+		inputs/wee_hee_hee_fun/wee_hee_hee_fun.mp3 \
 		outputs/programs/wee_hee_hee_fun \
 		--force --frame-rate 24
 
@@ -384,12 +386,12 @@ wee_hee_hee_fun-demo: wee_hee_hee_fun-upload
 wee_hee_hee_fun-upload: outputs/programs/wee_hee_hee_fun
 	bin/upload-program outputs/programs/wee_hee_hee_fun
 
-outputs/andy-animations/woo_popcorn_yummy/woo_popcorn_yummy.mp3: outputs/andy-animations/woo_popcorn_yummy/woo_popcorn_yummy.wav
+inputs/woo_popcorn_yummy/woo_popcorn_yummy.mp3: inputs/woo_popcorn_yummy/woo_popcorn_yummy.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/woo_popcorn_yummy: outputs/andy-animations/woo_popcorn_yummy/woo_popcorn_yummy.mp3
-	./bin/compile-animation outputs/andy-animations/woo_popcorn_yummy/woo_popcorn_yummy.json \
-		outputs/andy-animations/woo_popcorn_yummy/woo_popcorn_yummy.mp3 \
+outputs/programs/woo_popcorn_yummy: inputs/woo_popcorn_yummy/woo_popcorn_yummy.mp3
+	./bin/compile-animation inputs/woo_popcorn_yummy/woo_popcorn_yummy.json \
+		inputs/woo_popcorn_yummy/woo_popcorn_yummy.mp3 \
 		outputs/programs/woo_popcorn_yummy \
 		--force --frame-rate 24
 
@@ -400,12 +402,12 @@ woo_popcorn_yummy-demo: woo_popcorn_yummy-upload
 woo_popcorn_yummy-upload: outputs/programs/woo_popcorn_yummy
 	bin/upload-program outputs/programs/woo_popcorn_yummy
 
-outputs/andy-animations/yah_take_my_picture_yah/yah_take_my_picture_yah.mp3: outputs/andy-animations/yah_take_my_picture_yah/yah_take_my_picture_yah.wav
+inputs/yah_take_my_picture_yah/yah_take_my_picture_yah.mp3: inputs/yah_take_my_picture_yah/yah_take_my_picture_yah.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/yah_take_my_picture_yah: outputs/andy-animations/yah_take_my_picture_yah/yah_take_my_picture_yah.mp3
-	./bin/compile-animation outputs/andy-animations/yah_take_my_picture_yah/yah_take_my_picture_yah.json \
-		outputs/andy-animations/yah_take_my_picture_yah/yah_take_my_picture_yah.mp3 \
+outputs/programs/yah_take_my_picture_yah: inputs/yah_take_my_picture_yah/yah_take_my_picture_yah.mp3
+	./bin/compile-animation inputs/yah_take_my_picture_yah/yah_take_my_picture_yah.json \
+		inputs/yah_take_my_picture_yah/yah_take_my_picture_yah.mp3 \
 		outputs/programs/yah_take_my_picture_yah \
 		--force --frame-rate 24 \
 
@@ -416,12 +418,12 @@ yah_take_my_picture_yah-demo: yah_take_my_picture_yah-upload
 yah_take_my_picture_yah-upload: outputs/programs/yah_take_my_picture_yah
 	bin/upload-program outputs/programs/yah_take_my_picture_yah
 
-outputs/andy-animations/yay_woohoo_here_we_go_haha/yay_woohoo_here_we_go_haha.mp3: outputs/andy-animations/yay_woohoo_here_we_go_haha/yay_woohoo_here_we_go_haha.wav
+inputs/yay_woohoo_here_we_go_haha/yay_woohoo_here_we_go_haha.mp3: inputs/yay_woohoo_here_we_go_haha/yay_woohoo_here_we_go_haha.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/yay_woohoo_here_we_go_haha: outputs/andy-animations/yay_woohoo_here_we_go_haha/yay_woohoo_here_we_go_haha.mp3
-	./bin/compile-animation outputs/andy-animations/yay_woohoo_here_we_go_haha/yay_woohoo_here_we_go_haha.json \
-		outputs/andy-animations/yay_woohoo_here_we_go_haha/yay_woohoo_here_we_go_haha.mp3 \
+outputs/programs/yay_woohoo_here_we_go_haha: inputs/yay_woohoo_here_we_go_haha/yay_woohoo_here_we_go_haha.mp3
+	./bin/compile-animation inputs/yay_woohoo_here_we_go_haha/yay_woohoo_here_we_go_haha.json \
+		inputs/yay_woohoo_here_we_go_haha/yay_woohoo_here_we_go_haha.mp3 \
 		outputs/programs/yay_woohoo_here_we_go_haha \
 		--force --frame-rate 24 \
 
@@ -432,12 +434,12 @@ yay_woohoo_here_we_go_haha-demo: yay_woohoo_here_we_go_haha-upload
 yay_woohoo_here_we_go_haha-upload: outputs/programs/yay_woohoo_here_we_go_haha
 	bin/upload-program outputs/programs/yay_woohoo_here_we_go_haha
 
-outputs/andy-animations/yay_woohoo_here_we_go_hee_hee/yay_woohoo_here_we_go_hee_hee.mp3: outputs/andy-animations/yay_woohoo_here_we_go_hee_hee/yay_woohoo_here_we_go_hee_hee.wav
+inputs/yay_woohoo_here_we_go_hee_hee/yay_woohoo_here_we_go_hee_hee.mp3: inputs/yay_woohoo_here_we_go_hee_hee/yay_woohoo_here_we_go_hee_hee.wav
 	ffmpeg -y -i $< $@
 
-outputs/programs/yay_woohoo_here_we_go_hee_hee: outputs/andy-animations/yay_woohoo_here_we_go_hee_hee/yay_woohoo_here_we_go_hee_hee.mp3
-	./bin/compile-animation outputs/andy-animations/yay_woohoo_here_we_go_hee_hee/yay_woohoo_here_we_go_hee_hee.json \
-		outputs/andy-animations/yay_woohoo_here_we_go_hee_hee/yay_woohoo_here_we_go_hee_hee.mp3 \
+outputs/programs/yay_woohoo_here_we_go_hee_hee: inputs/yay_woohoo_here_we_go_hee_hee/yay_woohoo_here_we_go_hee_hee.mp3
+	./bin/compile-animation inputs/yay_woohoo_here_we_go_hee_hee/yay_woohoo_here_we_go_hee_hee.json \
+		inputs/yay_woohoo_here_we_go_hee_hee/yay_woohoo_here_we_go_hee_hee.mp3 \
 		outputs/programs/yay_woohoo_here_we_go_hee_hee \
 		--force --frame-rate 24 \
 
@@ -448,31 +450,4 @@ yay_woohoo_here_we_go_hee_hee-demo: yay_woohoo_here_we_go_hee_hee-upload
 yay_woohoo_here_we_go_hee_hee-upload: outputs/programs/yay_woohoo_here_we_go_hee_hee
 	bin/upload-program outputs/programs/yay_woohoo_here_we_go_hee_hee
 
-outputs/andy-animations/mahalo3/mahalo3.mp3: outputs/andy-animations/mahalo3/mahalo3.wav
-	ffmpeg -y -i $< $@
-
-outputs/programs/mahalo3: outputs/andy-animations/mahalo3/mahalo3.mp3
-	./bin/compile-animation outputs/andy-animations/mahalo3/mahalo3.json \
-		outputs/andy-animations/mahalo3/mahalo3.mp3 \
-		outputs/programs/mahalo3 \
-		--force --frame-rate 24 \
-
-mahalo3-demo: mahalo3-upload
-	sleep 1
-	./bin/dev_cmd PUPPET_01 play mahalo3
-
-mahalo3-upload: outputs/programs/mahalo3
-	bin/upload-program outputs/programs/mahalo3
-
-
-
-
-
-
-
-
-
-
 .PHONY: $(DEMO_TARGETS) $(UPLOAD_TARGETS)
-
-test: outputs/andy-animations/aloha/aloha.mp3
