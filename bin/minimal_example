@@ -1,0 +1,218 @@
+#!/usr/bin/env python3
+
+import sys
+import numpy as np
+import json
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QFileDialog
+)
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+from matplotlib.widgets import RectangleSelector
+
+class MplGraphCanvas(FigureCanvas):
+    def __init__(self, parent=None):
+        self.mode = "click"
+        self.fig = Figure()
+        super().__init__(self.fig)
+        self.ax = self.fig.add_subplot(111)
+        self.x = np.linspace(0, 10, 100)
+        self.y = np.sin(self.x)
+        self.line, = self.ax.plot(self.x, self.y, color='dimgray', linestyle='-')
+        self.last_drag_y = None
+        self.setParent(parent)
+
+        self.selected_indices = []
+
+        self.selector = RectangleSelector(
+            self.ax,
+            onselect=self.on_select,
+            useblit=True,
+            button=[1],  # Left mouse only
+            minspanx=5, minspany=5,
+            spancoords='pixels'
+        )
+        self.selector.set_active(False)  # Start disabled
+
+        self.control_indices = []
+        self.control_scatter = self.ax.scatter([], [], color='red', zorder=5)
+        self.set_draggable_points()
+
+        self.dragging = None
+
+        self.mpl_connect("button_press_event", self.on_click)
+        self.mpl_connect("motion_notify_event", self.on_drag)
+        self.mpl_connect("button_release_event", self.on_release)
+
+    def key_press_event(self, event):
+        if event.text().lower() == 's' and self.mode != "select":
+            self.mode = "select"
+            self.selector.set_active(True)
+        return
+
+    def key_release_event(self, event):
+        if event.text().lower() == 's' and self.mode == "select":
+            self.mode = "click"
+            self.selector.set_active(False)
+        return
+
+    def set_draggable_points(self):
+        self.control_indices = list(range(len(self.x)))  # all points
+        self.control_scatter = self.ax.scatter(self.x, self.y, color='black', marker='x', zorder=5)
+        return
+
+    def on_select(self, eclick, erelease):
+        if self.mode == "click": return
+
+        x0, x1 = sorted([eclick.xdata, erelease.xdata])
+        y0, y1 = sorted([eclick.ydata, erelease.ydata])
+
+        self.selected_indices = []
+        for i in self.control_indices:
+            x, y = self.x[i], self.y[i]
+            if x0 <= x <= x1 and y0 <= y <= y1:
+                self.selected_indices.append(i)
+
+        self.highlight_selected()
+
+
+    def highlight_selected(self):
+        if not self.selected_indices:
+            self.control_scatter.set_facecolors('red')
+            self.draw_idle()
+            return
+
+        facecolors = ['green' if i in self.selected_indices else 'black' for i in self.control_indices]
+        self.control_scatter.set_facecolors(facecolors)
+        self.draw_idle()
+
+
+    def on_click(self, event):
+        if self.mode != "click" or event.inaxes != self.ax:
+            return
+
+        x_click = event.xdata
+        idx = np.argmin(np.abs(self.x - x_click))
+        self.dragging = idx
+        self.last_drag_y = event.ydata
+        self.update_control_display()
+
+
+    def on_drag(self, event):
+        if self.mode != "click" or self.dragging is None or event.inaxes != self.ax:
+            return
+
+        if event.ydata is None or self.last_drag_y is None:
+            return
+
+        dy = event.ydata - self.last_drag_y
+        self.last_drag_y = event.ydata
+
+        if self.dragging in self.selected_indices:
+            # Group drag
+            for i in self.selected_indices:
+                self.y[i] += dy
+        else:
+            # Single drag
+            self.y[self.dragging] = event.ydata
+
+        self.line.set_ydata(self.y)
+        self.update_control_display()
+        self.draw_idle()
+        return
+
+    def on_release(self, event):
+        if self.mode == "click":
+            self.dragging = None
+            self.last_drag_y = None
+
+    def update_control_display(self):
+        x_vals = [self.x[i] for i in self.control_indices]
+        y_vals = [self.y[i] for i in self.control_indices]
+        self.control_scatter.set_offsets(np.column_stack([x_vals, y_vals]))
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Animation Adjustor")
+
+        self.canvas = MplGraphCanvas(self)
+        self.canvas.setFocusPolicy(Qt.StrongFocus)
+        self.canvas.setFocus()
+
+        self.canvas.keyPressEvent = self.canvas.key_press_event
+        self.canvas.keyReleaseEvent = self.canvas.key_release_event
+
+        self.save_button = QPushButton("Save")
+        self.save_button.clicked.connect(self.save_to_csv)
+
+        self.load_button = QPushButton("Load")
+        self.load_button.clicked.connect(self.load_from_csv)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.canvas)
+
+        self.toggle_button = QPushButton("Switch to Select Mode")
+        self.toggle_button.clicked.connect(self.toggle_mode)
+
+        layout.addWidget(self.toggle_button)
+
+        layout.addWidget(self.load_button)
+        layout.addWidget(self.save_button)
+
+        container = QWidget()
+        container.setLayout(layout)
+        self.setCentralWidget(container)
+
+        self.load_file("/Users/naddy/Source/Puppet/puppetnet-loader/inputs/stitch_made_himself_pretty/stitch_made_himself_pretty.json")
+
+    def toggle_mode(self):
+        if self.canvas.mode == "click":
+            self.canvas.mode = "select"
+            self.toggle_button.setText("Switch to Click Mode")
+            self.canvas.selector.set_active(True)
+        else:
+            self.canvas.mode = "click"
+            self.toggle_button.setText("Switch to Select Mode")
+            self.canvas.selector.set_active(False)
+
+    def save_to_csv(self):
+        fname, _ = QFileDialog.getSaveFileName(self, "Save CSV", "", "CSV Files (*.csv)")
+        if fname:
+            np.savetxt(fname, np.column_stack([self.canvas.x, self.canvas.y]), delimiter=",")
+            print(f"Saved to {fname}")
+
+    def load_file(self, fname):
+        data = json.loads(open(fname).read())
+        servo_name = list(data["servos"].keys())[0]
+        frames = [d['frame'] for d in data["history"]]
+        values = [d["servos"][servo_name]["servo"] for d in data["history"]]
+
+        self.canvas.x = frames
+        self.canvas.y = values
+        self.canvas.line.set_data(self.canvas.x, self.canvas.y)
+        self.canvas.ax.relim()
+        self.canvas.ax.autoscale_view()
+        self.canvas.control_indices = []
+        self.canvas.update_control_display()
+        self.canvas.draw_idle()
+        self.canvas.set_draggable_points()
+        print(f"Loaded from {fname}")
+        return
+
+
+    def load_from_csv(self):
+        fname, _ = QFileDialog.getOpenFileName(self, "Open CSV", "", "All Files (*)")
+        if fname:
+            self.load_file(fname)
+            return
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.resize(800, 600)
+    window.show()
+    sys.exit(app.exec())
