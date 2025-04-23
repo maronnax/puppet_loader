@@ -12,29 +12,61 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib.widgets import RectangleSelector
 
+class PlottedCurve:
+    def __init__(self, x=None, y=None):
+        self._x = np.array(x) if x is not None else np.array([])
+        self._y = np.array(y) if y is not None else np.array([])
+
+    @property
+    def x(self):
+        return self._x
+
+    @x.setter
+    def x(self, new_x):
+        self._x = np.array(new_x)
+
+    @property
+    def y(self):
+        return self._y
+
+    @y.setter
+    def y(self, new_y):
+        self._y = np.array(new_y)
+
+    def get_data(self):
+        return self._x, self._y
+
+    def set_data(self, x, y):
+        self._x = np.array(x)
+        self._y = np.array(y)
+
+    def __len__(self):
+        return len(self._x)
+
+
 class MplGraphCanvas(FigureCanvas):
     def __init__(self, parent=None):
         self.mode = "click"
         self.fig = Figure()
         super().__init__(self.fig)
         self.ax = self.fig.add_subplot(111)
-        self.x = np.linspace(0, 10, 100)
-        self.y = np.sin(self.x)
-        self.line, = self.ax.plot(self.x, self.y, color='dimgray', linestyle='-')
+
+        self.curve = PlottedCurve(np.linspace(0, 10, 100), np.sin(np.linspace(0, 10, 100)))
+        self.line, = self.ax.plot(self.curve.x, self.curve.y, color='dimgray', linestyle='-')
+
         self.last_drag_y = None
         self.setParent(parent)
 
         self.selected_indices = []
-
         self.selector = RectangleSelector(
             self.ax,
             onselect=self.on_select,
             useblit=True,
-            button=[1],  # Left mouse only
+            button=[1],
             minspanx=5, minspany=5,
             spancoords='pixels'
         )
-        self.selector.set_active(False)  # Start disabled
+        self.selector.set_active(False)
 
         self.control_indices = []
         self.control_scatter = self.ax.scatter([], [], color='red', zorder=5)
@@ -45,6 +77,8 @@ class MplGraphCanvas(FigureCanvas):
         self.mpl_connect("button_press_event", self.on_click)
         self.mpl_connect("motion_notify_event", self.on_drag)
         self.mpl_connect("button_release_event", self.on_release)
+
+        return
 
     def key_press_event(self, event):
         if event.text().lower() == 's' and self.mode != "select":
@@ -59,8 +93,8 @@ class MplGraphCanvas(FigureCanvas):
         return
 
     def set_draggable_points(self):
-        self.control_indices = list(range(len(self.x)))  # all points
-        self.control_scatter = self.ax.scatter(self.x, self.y, color='black', marker='x', zorder=5)
+        self.control_indices = list(range(len(self.curve)))
+        self.control_scatter = self.ax.scatter(self.curve.x, self.curve.y, color='black', marker='x', zorder=5)
         return
 
     def on_select(self, eclick, erelease):
@@ -71,7 +105,7 @@ class MplGraphCanvas(FigureCanvas):
 
         self.selected_indices = []
         for i in self.control_indices:
-            x, y = self.x[i], self.y[i]
+            x, y = self.curve.x[i], self.curve.y[i]
             if x0 <= x <= x1 and y0 <= y <= y1:
                 self.selected_indices.append(i)
 
@@ -94,7 +128,7 @@ class MplGraphCanvas(FigureCanvas):
             return
 
         x_click = event.xdata
-        idx = np.argmin(np.abs(self.x - x_click))
+        idx = np.argmin(np.abs(self.curve.x - x_click))
         self.dragging = idx
         self.last_drag_y = event.ydata
         self.update_control_display()
@@ -113,12 +147,12 @@ class MplGraphCanvas(FigureCanvas):
         if self.dragging in self.selected_indices:
             # Group drag
             for i in self.selected_indices:
-                self.y[i] += dy
+                self.curve.y[i] += dy
         else:
             # Single drag
-            self.y[self.dragging] = event.ydata
+            self.curve.y[self.dragging] = event.ydata
 
-        self.line.set_ydata(self.y)
+        self.line.set_ydata(self.curve.y)
         self.update_control_display()
         self.draw_idle()
         return
@@ -129,9 +163,11 @@ class MplGraphCanvas(FigureCanvas):
             self.last_drag_y = None
 
     def update_control_display(self):
-        x_vals = [self.x[i] for i in self.control_indices]
-        y_vals = [self.y[i] for i in self.control_indices]
+        x_vals = [self.curve.x[i] for i in self.control_indices]
+        y_vals = [self.curve.y[i] for i in self.control_indices]
         self.control_scatter.set_offsets(np.column_stack([x_vals, y_vals]))
+        self.draw_idle()
+        return
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -190,9 +226,9 @@ class MainWindow(QMainWindow):
         frames = [d['frame'] for d in data["history"]]
         values = [d["servos"][servo_name]["servo"] for d in data["history"]]
 
-        self.canvas.x = frames
-        self.canvas.y = values
-        self.canvas.line.set_data(self.canvas.x, self.canvas.y)
+        self.canvas.curve.x = frames
+        self.canvas.curve.y = values
+        self.canvas.line.set_data(self.canvas.curve.x, self.canvas.curve.y)
         self.canvas.ax.relim()
         self.canvas.ax.autoscale_view()
         self.canvas.control_indices = []
