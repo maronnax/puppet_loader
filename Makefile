@@ -14,6 +14,9 @@ install:
 
 .PHONY: all
 
+upload-all:
+	sh upload_all_animations
+
 all: $(PROGRAM_DIRS)
 all-demos: $(DEMO_TARGETS)
 all-uploads: $(UPLOAD_TARGETS)
@@ -450,4 +453,4 @@ yay_woohoo_here_we_go_hee_hee-demo: yay_woohoo_here_we_go_hee_hee-upload
 yay_woohoo_here_we_go_hee_hee-upload: outputs/programs/yay_woohoo_here_we_go_hee_hee
 	$(PYTHON) bin/upload-program outputs/programs/yay_woohoo_here_we_go_hee_hee
 
-.PHONY: $(DEMO_TARGETS) $(UPLOAD_TARGETS)
+.PHONY: $(DEMO_TARGETS) $(UPLOAD_TARGETS) upload-all
