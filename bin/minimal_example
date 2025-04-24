@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 
+import shutil
+import subprocess
 import sys
 import numpy as np
 import json
+import copy
 import time
 import os
 import socket
+from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -16,9 +20,19 @@ from matplotlib.figure import Figure
 from matplotlib.widgets import RectangleSelector
 import pygame
 
+PROGRAM_NAME="stitch_made_himself_pretty_alt"
+PROGRAM_AUDIO="/Users/naddy/Source/Puppet/puppetnet-loader/inputs/stitch_made_himself_pretty/stitch_made_himself_pretty.mp3"
+PROGRAM_FILE="/Users/naddy/Source/Puppet/puppetnet-loader/inputs/stitch_made_himself_pretty/stitch_made_himself_pretty.json"
+
+PROGRAM_FILE_2 = (Path(PROGRAM_FILE).parent.parent / PROGRAM_NAME) / (PROGRAM_NAME + ".json")
+PROGRAM_AUDIO_2 = (Path(PROGRAM_FILE).parent.parent / PROGRAM_NAME) / (PROGRAM_NAME + Path(PROGRAM_AUDIO).suffix)
+PROGRAM_DIR_2 = Path(PROGRAM_FILE).parent.parent.parent / "outputs"/ "programs" / PROGRAM_NAME
+
+assert PROGRAM_NAME not in PROGRAM_AUDIO, "You're probably using the wrong program name!"
+
 def play_on_puppet(frames, values, fps):
     pygame.mixer.init()
-    pygame.mixer.music.load("/Users/naddy/Source/Puppet/puppetnet-loader/inputs/stitch_made_himself_pretty/stitch_made_himself_pretty.mp3")
+    pygame.mixer.music.load(PROGRAM_AUDIO)
 
     host = os.environ.get("PUPPETNET_IP", '192.168.4.1')
     port = 12345
@@ -42,16 +56,51 @@ def play_on_puppet(frames, values, fps):
             udp_sock.sendto(command.encode(), (host, port))
             next_frame = time.time() + sec_per_frame
             break
-
     return
+
+def unpacker(f):
+    def alt_f(self, **kwds):
+        d = f(self, **kwds)
+        return tuple(d[k] for k in kwds)
+    return alt_f
+
+class HistoryManager:
+    def __init__(self):
+        self.history_ptr = -1
+        self.history_states = []
+
+    def record_history(self, **kwds):
+        # Trim future states if we're in the middle
+        if self.history_ptr < len(self.history_states) - 1:
+            self.history_states = self.history_states[:self.history_ptr + 1]
+
+        # Append a deepcopy of the current state
+        self.history_states.append(copy.deepcopy(kwds))
+        self.history_ptr += 1
+
+    @unpacker
+    def undo(self, **kwds):
+        if self.history_ptr <= 0:
+            return kwds
+
+        self.history_ptr -= 1
+        past_state = self.history_states[self.history_ptr]
+        return {k: past_state.get(k, kwds[k]) for k in kwds}
+
+    @unpacker
+    def redo(self, **kwds):
+        if self.history_ptr >= len(self.history_states) - 1:
+            return kwds  # Nothing to redo
+
+        self.history_ptr += 1
+        future_state = self.history_states[self.history_ptr]
+        return {k: future_state.get(k, kwds[k]) for k in kwds}
+
 
 class PlottedCurve:
     def __init__(self, x=None, y=None):
         self._x = np.array(x) if x is not None else np.array([])
         self._y = np.array(y) if y is not None else np.array([])
-
-        self.undo_stack = []
-        self.redo_stack = []
 
     @property
     def x(self):
@@ -72,35 +121,9 @@ class PlottedCurve:
     def get_data(self):
         return self._x, self._y
 
-    def set_data(self, x, y, record_undo=True):
-        if record_undo:
-            self.undo_stack.append((self._x.copy(), self._y.copy()))
-            self.redo_stack.clear()
+    def set_data(self, x, y):
         self._x = np.array(x)
         self._y = np.array(y)
-
-    def undo(self):
-        print("Undo stack size:", len(self.undo_stack))
-        print("Redo stack size:", len(self.redo_stack))
-
-        if not self.undo_stack:
-            return False
-        self.redo_stack.append((self._x.copy(), self._y.copy()))
-        self._x, self._y = self.undo_stack.pop()
-        print("Undo stack size:", len(self.undo_stack))
-        print("Redo stack size:", len(self.redo_stack))
-
-
-        return True
-
-    def redo(self):
-        if not self.redo_stack:
-            return False
-        self.undo_stack.append((self._x.copy(), self._y.copy()))
-        self._x, self._y = self.redo_stack.pop()
-        return True
-
-
 
     def __len__(self):
         return len(self._x)
@@ -108,11 +131,15 @@ class PlottedCurve:
 
 class MplGraphCanvas(FigureCanvas):
     def __init__(self, parent=None):
+
+        self.fps = 24
         self.mode = "click"
         self.shift_down = False
         self.ctrl_down = False
         self.meta_down = False
         self.alt_down = False
+
+        self.undo_manager = HistoryManager()
 
 
         self.fig = Figure()
@@ -141,7 +168,6 @@ class MplGraphCanvas(FigureCanvas):
         )
         self.selector.set_active(False)
 
-        self.control_indices = []
         self.control_scatter = self.ax.scatter([], [], color='red', zorder=5)
         self.set_draggable_points()
 
@@ -153,22 +179,68 @@ class MplGraphCanvas(FigureCanvas):
 
         return
 
+    def record_history(self):
+        return self.undo_manager.record_history(
+            curve=self.curve,
+            selected=self.selected_indices
+        )
+
+    def undo(self):
+        (self.curve, self.selected_indices) = (
+            self.undo_manager.undo(curve=self.curve, selected=self.selected_indices)
+        )
+        return None
+
+    def redo(self):
+        (self.curve, self.selected_indices) = (
+            self.undo_manager.redo(curve=self.curve, selected=self.selected_indices)
+        )
+        return
+
 
     def insert_point_at_start(self):
         # Get current curve data
+        self.record_history()
+
         xx = [0] + [(n+1) for n in self.curve.x]
         yy = [self.curve.y[0]] + self.curve.y.tolist()
 
-        # Set new data with undo recording
-        self.curve.set_data(xx, yy, record_undo=True)
-        self.control_indices = list(range(len(self.curve)))
-        self.selected_indices = [0] + [(n+1) for n in self.selected_indices]
+        self.curve.set_data(xx, yy)
+        self.selected_indices = [(n+1) for n in self.selected_indices]
+
+        self.highlight_selected()
 
         self.update_curve()
         self.draw_idle()
         self.setFocus()
         self.update_view()
+
         return
+
+
+    def delete_point_at_start(self):
+        # Get current curve data
+        self.record_history()
+
+        xx = [(n-1) for n in self.curve.x[1:]]
+        yy = self.curve.y.tolist()[1:]
+
+        self.curve.set_data(xx, yy)
+        self.selected_indices = [(n-1) for n in self.selected_indices]
+
+        self.highlight_selected()
+
+        self.update_curve()
+        self.draw_idle()
+        self.setFocus()
+        self.update_view()
+
+        return
+
+
+
+
+
 
     def update_view(self):
         self.ax.relim()
@@ -191,26 +263,24 @@ class MplGraphCanvas(FigureCanvas):
             #print("Setting alt_down=True")
             self.alt_down = True
 
-
         text = event.text().lower()
-
         print(text)
 
         if text == 's' and self.mode != "select":
             self.mode = "select"
             self.selector.set_active(True)
         elif text == 'q':
-            if self.curve.undo():
-                self.update_curve()
-                self.draw_idle()
-                self.setFocus()
-                self.update_view()
+            self.undo()
+            self.update_curve()
+            self.draw_idle()
+            self.setFocus()
+            self.update_view()
         elif text == 'e':
-            if self.curve.redo():
-                self.update_curve()
-                self.draw_idle()
-                self.setFocus()
-                self.update_view()
+            self.redo()
+            self.update_curve()
+            self.draw_idle()
+            self.setFocus()
+            self.update_view()
         elif text == 'x':
             if not self.selected_indices and self.last_selected_indices:
                 self.selected_indices = self.last_selected_indices
@@ -219,20 +289,36 @@ class MplGraphCanvas(FigureCanvas):
                 self.selected_indices = []
             self.highlight_selected()
         elif text == 'i':
-            self.insert_point_at_start()
+            if not self.shift_down:
+                self.insert_point_at_start()
+            else:
+                self.delete_point_at_start()
+        elif text == '`':
+            import IPython as ip, emacsipython as es; ip.embed(config=es.make_ipy_conf()) ## NJA-IPYTHON
+        elif text == '+':
+            # Double Resolution
+            xx, yy = double_resolution(self.curve.x, self.curve.y)
+            self.record_history()
+            self.fps *= 2
+            self.curve.set_data(xx, yy)
+            self.selected_indices = []
+            self.highlight_selected()
+
+            self.update_curve()
+            self.draw_idle()
+            self.setFocus()
+            self.update_view()
+
+
         elif text == 'p':
             xx = self.curve.x.tolist()
             yy = self.curve.y.tolist()
 
-            if self.shift_down:
-                pass
-            else:
-                if not self.selected_indices:
-                    pass
-                else:
-                    import IPython as ip, emacsipython as es; ip.embed(config=es.make_ipy_conf()) ## NJA-IPYTHO
-            fps = 24
-            play_on_puppet(xx, yy, fps)
+            if not self.shift_down:
+                xx = [xx[ndx] for ndx in self.selected_indices]
+                yy = [yy[ndx] for ndx in self.selected_indices]
+
+            play_on_puppet(xx, yy, self.fps)
         return
 
     def key_release_event(self, event):
@@ -266,8 +352,10 @@ class MplGraphCanvas(FigureCanvas):
 
 
     def set_draggable_points(self):
-        self.control_indices = list(range(len(self.curve)))
+        if hasattr(self, 'control_scatter'):
+            self.control_scatter.remove()
         self.control_scatter = self.ax.scatter(self.curve.x, self.curve.y, color='black', marker='x', zorder=5)
+        self.draw_idle()
         return
 
 
@@ -280,7 +368,7 @@ class MplGraphCanvas(FigureCanvas):
 
 
         if self.shift_down:
-            for i in self.control_indices:
+            for i in range(len(self.curve.x)):
                 x, y = self.curve.x[i], self.curve.y[i]
                 if x0 <= x <= x1 and y0 <= y <= y1:
                     if i in self.selected_indices:
@@ -289,12 +377,13 @@ class MplGraphCanvas(FigureCanvas):
                         self.selected_indices.append(i)
         else:
             self.selected_indices = []
-            for i in self.control_indices:
+            for i in range(len(self.curve.x)):
                 x, y = self.curve.x[i], self.curve.y[i]
                 if x0 <= x <= x1 and y0 <= y <= y1:
                     self.selected_indices.append(i)
 
         self.highlight_selected()
+        return
 
 
     def highlight_selected(self):
@@ -303,10 +392,10 @@ class MplGraphCanvas(FigureCanvas):
             self.draw_idle()
             return
 
-        print(self.selected_indices)
-        facecolors = ['green' if i in self.selected_indices else 'black' for i in self.control_indices]
+        facecolors = ['green' if i in self.selected_indices else 'black' for i in range(len(self.curve.x))]
         self.control_scatter.set_facecolors(facecolors)
         self.draw_idle()
+        return
 
 
     def on_click(self, event):
@@ -343,7 +432,7 @@ class MplGraphCanvas(FigureCanvas):
 
         # Save current state for undo before applying changes
         if getattr(self, "undo_pending", True):
-            self.curve.set_data(self.curve.x.copy(), self.curve.y.copy(), record_undo=True)
+            self.record_history()
             self.undo_pending = False
 
         new_ys = self.curve.y.copy()
@@ -372,8 +461,8 @@ class MplGraphCanvas(FigureCanvas):
             self.last_drag_y = None
 
     def update_control_display(self):
-        x_vals = [self.curve.x[i] for i in self.control_indices]
-        y_vals = [self.curve.y[i] for i in self.control_indices]
+        x_vals = self.curve.x[:]
+        y_vals = self.curve.y[:]
         self.control_scatter.set_offsets(np.column_stack([x_vals, y_vals]))
         self.draw_idle()
         return
@@ -391,7 +480,7 @@ class MainWindow(QMainWindow):
         self.canvas.keyReleaseEvent = self.canvas.key_release_event
 
         self.save_button = QPushButton("Save")
-        self.save_button.clicked.connect(self.save_to_csv)
+        self.save_button.clicked.connect(self.upload_and_play_program)
 
         self.load_button = QPushButton("Load")
         self.load_button.clicked.connect(self.load_from_csv)
@@ -411,7 +500,7 @@ class MainWindow(QMainWindow):
         container.setLayout(layout)
         self.setCentralWidget(container)
 
-        self.load_file("/Users/naddy/Source/Puppet/puppetnet-loader/inputs/stitch_made_himself_pretty/stitch_made_himself_pretty.json")
+        self.load_file(PROGRAM_FILE)
 
     def toggle_mode(self):
         if self.canvas.mode == "click":
@@ -423,16 +512,45 @@ class MainWindow(QMainWindow):
             self.toggle_button.setText("Switch to Select Mode")
             self.canvas.selector.set_active(False)
 
+
+    def upload_and_play_program(self):
+        self.save_to_csv()
+        subprocess.run(["./bin/compile-animation", PROGRAM_FILE_2, PROGRAM_AUDIO, PROGRAM_DIR_2, "--force", "--frame-rate", str(self.canvas.fps)])
+        subprocess.run(["bin/upload-program", PROGRAM_DIR_2])
+        subprocess.run(["./bin/dev_cmd", "PUPPET_01", "play", PROGRAM_NAME])
+        return
+
+
+
+
     def save_to_csv(self):
-        fname, _ = QFileDialog.getSaveFileName(self, "Save CSV", "", "CSV Files (*.csv)")
-        if fname:
-            np.savetxt(fname, np.column_stack([self.canvas.x, self.canvas.y]), delimiter=",")
-            print(f"Saved to {fname}")
+        output = {}
+        output["servos"] = json.loads(open(PROGRAM_FILE).read())["servos"]
+        servo_name = list(json.loads(open(PROGRAM_FILE).read())["servos"].keys())[0]
+        output["history"] = [
+            {"frame": frame, "servos": {servo_name: {"triangle": 0.0, "servo": int(val)}}}
+            for frame, val in enumerate(self.canvas.curve.y, 1)
+        ]
+
+        prog_dir = (Path(PROGRAM_FILE).parent.parent / PROGRAM_NAME)
+        prog_dir.mkdir(parents=True, exist_ok=True)
+
+        outf_name = (Path(PROGRAM_FILE).parent.parent / PROGRAM_NAME) / (PROGRAM_NAME + ".json")
+
+        with open(outf_name, 'w') as outf:
+            outf.write(json.dumps(output))
+
+        output_audio_f = (Path(PROGRAM_FILE).parent.parent / PROGRAM_NAME) / (PROGRAM_NAME + Path(PROGRAM_AUDIO).suffix)
+        shutil.copy2(PROGRAM_AUDIO, output_audio_f)
+        return
 
     def load_file(self, fname):
         data = json.loads(open(fname).read())
         servo_name = list(data["servos"].keys())[0]
+
         frames = [d['frame'] for d in data["history"]]
+        frames = [int(x) - 1 for x in frames]
+
         values = [d["servos"][servo_name]["servo"] for d in data["history"]]
 
         self.canvas.curve.x = frames
@@ -452,10 +570,26 @@ class MainWindow(QMainWindow):
         return
 
     def load_from_csv(self):
-        fname, _ = QFileDialog.getOpenFileName(self, "Open CSV", "", "All Files (*)")
-        if fname:
-            self.load_file(fname)
-            return
+        self.load_file(PROGRAM_FILE)
+        return
+
+
+
+def double_resolution(x, y):
+    x = np.asarray(x)
+    y = np.asarray(y)
+
+    new_x = np.empty(2 * len(x) - 1, dtype=float)
+    new_y = np.empty_like(new_x)
+
+    new_x[::2] = x
+    new_x[1::2] = (x[:-1] + x[1:]) / 2
+
+    new_y[::2] = y
+    new_y[1::2] = (y[:-1] + y[1:]) / 2  # Linear interpolation
+
+    return list(map(int, (2 * new_x).tolist())), list(map(int, new_y.tolist()))
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
