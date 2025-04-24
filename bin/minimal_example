@@ -3,6 +3,9 @@
 import sys
 import numpy as np
 import json
+import time
+import os
+import socket
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -11,6 +14,36 @@ from PySide6.QtWidgets import (
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib.widgets import RectangleSelector
+import pygame
+
+def play_on_puppet(frames, values, fps):
+    pygame.mixer.init()
+    pygame.mixer.music.load("/Users/naddy/Source/Puppet/puppetnet-loader/inputs/stitch_made_himself_pretty/stitch_made_himself_pretty.mp3")
+
+    host = os.environ.get("PUPPETNET_IP", '192.168.4.1')
+    port = 12345
+
+    udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp_sock.bind(('', port))
+
+    sec_per_frame = 1 / fps
+    next_frame = time.time()
+
+    packet = {'dest': 'PUPPET_01', '_type': 'cmd', 'cmd': {'name': 'servo_0', 'state': None}}
+
+    pygame.mixer.music.play()
+    for pt in values:
+        while True:
+            if ((now := time.time()) < next_frame):
+                time.sleep(next_frame - now + .0001)
+                continue
+            packet = {'dest': 'PUPPET_01', '_type': 'cmd', 'cmd': {'name': 'servo_0', 'state': pt}}
+            command = json.dumps(packet)
+            udp_sock.sendto(command.encode(), (host, port))
+            next_frame = time.time() + sec_per_frame
+            break
+
+    return
 
 class PlottedCurve:
     def __init__(self, x=None, y=None):
@@ -120,6 +153,23 @@ class MplGraphCanvas(FigureCanvas):
 
         return
 
+
+    def insert_point_at_start(self):
+        # Get current curve data
+        xx = [0] + [(n+1) for n in self.curve.x]
+        yy = [self.curve.y[0]] + self.curve.y.tolist()
+
+        # Set new data with undo recording
+        self.curve.set_data(xx, yy, record_undo=True)
+        self.control_indices = list(range(len(self.curve)))
+        self.selected_indices = [0] + [(n+1) for n in self.selected_indices]
+
+        self.update_curve()
+        self.draw_idle()
+        self.setFocus()
+        self.update_view()
+        return
+
     def update_view(self):
         self.ax.relim()
         self.ax.autoscale_view(scalex=True, scaley=False)
@@ -168,6 +218,21 @@ class MplGraphCanvas(FigureCanvas):
                 self.last_selected_indices = self.selected_indices
                 self.selected_indices = []
             self.highlight_selected()
+        elif text == 'i':
+            self.insert_point_at_start()
+        elif text == 'p':
+            xx = self.curve.x.tolist()
+            yy = self.curve.y.tolist()
+
+            if self.shift_down:
+                pass
+            else:
+                if not self.selected_indices:
+                    pass
+                else:
+                    import IPython as ip, emacsipython as es; ip.embed(config=es.make_ipy_conf()) ## NJA-IPYTHO
+            fps = 24
+            play_on_puppet(xx, yy, fps)
         return
 
     def key_release_event(self, event):
@@ -386,21 +451,16 @@ class MainWindow(QMainWindow):
         self.canvas.update_view()
         return
 
-
-
-
     def load_from_csv(self):
         fname, _ = QFileDialog.getOpenFileName(self, "Open CSV", "", "All Files (*)")
         if fname:
             self.load_file(fname)
             return
 
-
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()
     window.resize(1920, 1080)
-
 
     screens = app.screens()
 
