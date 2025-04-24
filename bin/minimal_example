@@ -76,9 +76,18 @@ class PlottedCurve:
 class MplGraphCanvas(FigureCanvas):
     def __init__(self, parent=None):
         self.mode = "click"
+        self.shift_down = False
+        self.ctrl_down = False
+        self.meta_down = False
+        self.alt_down = False
+
+
         self.fig = Figure()
         super().__init__(self.fig)
         self.ax = self.fig.add_subplot(111)
+
+        self.ax.axhline(8000, color='lightgrey', linewidth=1, linestyle='--', zorder=0)
+        self.ax.axhline(5000, color='lightgrey', linewidth=1, linestyle='--', zorder=0)
 
         self.curve = PlottedCurve(np.linspace(0, 10, 100), np.sin(np.linspace(0, 10, 100)))
         self.line, = self.ax.plot(self.curve.x, self.curve.y, color='dimgray', linestyle='-')
@@ -87,6 +96,8 @@ class MplGraphCanvas(FigureCanvas):
         self.setParent(parent)
 
         self.selected_indices = []
+        self.last_selected_indices = []
+
         self.selector = RectangleSelector(
             self.ax,
             onselect=self.on_select,
@@ -109,8 +120,32 @@ class MplGraphCanvas(FigureCanvas):
 
         return
 
+    def update_view(self):
+        self.ax.relim()
+        self.ax.autoscale_view(scalex=True, scaley=False)
+        self.ax.set_ylim(4000, 8300)
+        return
+
+
     def key_press_event(self, event):
+        if event.key() == Qt.Key_Shift:
+            #print("Setting shift_down=True")
+            self.shift_down = True
+        if event.key() == Qt.Key_Control:
+            #print("Setting control_down=True")
+            self.control_down = True
+        if event.key() == Qt.Key_Meta:
+            #print("Setting meta_down=True")
+            self.meta_down = True
+        if event.key() == Qt.Key_Alt:
+            #print("Setting alt_down=True")
+            self.alt_down = True
+
+
         text = event.text().lower()
+
+        print(text)
+
         if text == 's' and self.mode != "select":
             self.mode = "select"
             self.selector.set_active(True)
@@ -119,12 +154,42 @@ class MplGraphCanvas(FigureCanvas):
                 self.update_curve()
                 self.draw_idle()
                 self.setFocus()
+                self.update_view()
         elif text == 'e':
             if self.curve.redo():
                 self.update_curve()
                 self.draw_idle()
                 self.setFocus()
+                self.update_view()
+        elif text == 'x':
+            if not self.selected_indices and self.last_selected_indices:
+                self.selected_indices = self.last_selected_indices
+            else:
+                self.last_selected_indices = self.selected_indices
+                self.selected_indices = []
+            self.highlight_selected()
         return
+
+    def key_release_event(self, event):
+        if event.key() == Qt.Key_Shift:
+            #print("Setting shift_down=False")
+            self.shift_down = False
+        if event.key() == Qt.Key_Control:
+            #print("Setting control_down=False")
+            self.control_down = False
+        if event.key() == Qt.Key_Meta:
+            #print("Setting meta_down=False")
+            self.meta_down = False
+        if event.key() == Qt.Key_Alt:
+            #print("Setting alt_down=False")
+            self.alt_down = False
+
+        text = event.text().lower()
+        if text == 's' and self.mode == "select":
+            self.mode = "click"
+            self.selector.set_active(False)
+        return
+
 
     def update_curve(self):
         self.line.set_data(self.curve.x, self.curve.y)
@@ -134,39 +199,46 @@ class MplGraphCanvas(FigureCanvas):
         self.update_control_display()
         self.draw_idle()
 
-    def key_release_event(self, event):
-        text = event.text().lower()
-        if text == 's' and self.mode == "select":
-            self.mode = "click"
-            self.selector.set_active(False)
-        return
 
     def set_draggable_points(self):
         self.control_indices = list(range(len(self.curve)))
         self.control_scatter = self.ax.scatter(self.curve.x, self.curve.y, color='black', marker='x', zorder=5)
         return
 
+
     def on_select(self, eclick, erelease):
-        if self.mode == "click": return
+        if self.mode != "select":
+            return
 
         x0, x1 = sorted([eclick.xdata, erelease.xdata])
         y0, y1 = sorted([eclick.ydata, erelease.ydata])
 
-        self.selected_indices = []
-        for i in self.control_indices:
-            x, y = self.curve.x[i], self.curve.y[i]
-            if x0 <= x <= x1 and y0 <= y <= y1:
-                self.selected_indices.append(i)
+
+        if self.shift_down:
+            for i in self.control_indices:
+                x, y = self.curve.x[i], self.curve.y[i]
+                if x0 <= x <= x1 and y0 <= y <= y1:
+                    if i in self.selected_indices:
+                        self.selected_indices.remove(i)
+                    else:
+                        self.selected_indices.append(i)
+        else:
+            self.selected_indices = []
+            for i in self.control_indices:
+                x, y = self.curve.x[i], self.curve.y[i]
+                if x0 <= x <= x1 and y0 <= y <= y1:
+                    self.selected_indices.append(i)
 
         self.highlight_selected()
 
 
     def highlight_selected(self):
         if not self.selected_indices:
-            self.control_scatter.set_facecolors('red')
+            self.control_scatter.set_facecolors('black')
             self.draw_idle()
             return
 
+        print(self.selected_indices)
         facecolors = ['green' if i in self.selected_indices else 'black' for i in self.control_indices]
         self.control_scatter.set_facecolors(facecolors)
         self.draw_idle()
@@ -179,11 +251,20 @@ class MplGraphCanvas(FigureCanvas):
         x_click = event.xdata
         idx = np.argmin(np.abs(self.curve.x - x_click))
         self.dragging = idx
-        self.undo_pending = True  # record undo once on first drag
         self.last_drag_y = event.ydata
+
+        if self.shift_down:
+            if idx in self.selected_indices:
+                self.selected_indices.remove(idx)
+            else:
+                self.selected_indices.append(idx)
+        else:
+            # self.selected_indices = [idx]
+            self.undo_pending = True  # record undo once on first drag
+
+        self.highlight_selected()
         self.update_control_display()
         return
-
 
     def on_drag(self, event):
         if self.mode != "click" or self.dragging is None or event.inaxes != self.ax:
@@ -196,17 +277,24 @@ class MplGraphCanvas(FigureCanvas):
         self.last_drag_y = event.ydata
 
         # Save current state for undo before applying changes
-
         if getattr(self, "undo_pending", True):
             self.curve.set_data(self.curve.x.copy(), self.curve.y.copy(), record_undo=True)
             self.undo_pending = False
 
+        new_ys = self.curve.y.copy()
         if self.dragging in self.selected_indices:
             for i in self.selected_indices:
-                self.curve.y[i] += dy
+                new_y = new_ys[i] + dy
+                if not (5000 <= new_y <= 8000):
+                    return  # abort drag if any point goes out of bounds
+                new_ys[i] = new_y
         else:
-            self.curve.y[self.dragging] = event.ydata
+            new_y = event.ydata
+            if not (5000 <= new_y <= 8000):
+                return
+            new_ys[self.dragging] = new_y
 
+        self.curve.y = new_ys
         self.line.set_ydata(self.curve.y)
         self.update_control_display()
         self.draw_idle()
@@ -295,9 +383,7 @@ class MainWindow(QMainWindow):
         return
 
     def update_view(self):
-        self.canvas.ax.relim()
-        self.canvas.ax.autoscale_view(scalex=True, scaley=False)
-        self.canvas.ax.set_ylim(4000, 8000)
+        self.canvas.update_view()
         return
 
 
@@ -313,6 +399,15 @@ class MainWindow(QMainWindow):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()
-    window.resize(800, 600)
+    window.resize(1920, 1080)
+
+
+    screens = app.screens()
+
+    if len(screens) > 1:
+        other_screen = screens[0]  # Index 0 is primary, 1 is usually the second screen
+        geometry = other_screen.geometry()
+        window.move(geometry.topLeft())
+
     window.show()
     sys.exit(app.exec())
