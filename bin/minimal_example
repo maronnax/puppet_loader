@@ -403,8 +403,8 @@ class MplGraphCanvas(FigureCanvas):
         facecolors = ['blue' if ndx in self.range_indices else color for (ndx, color) in enumerate(facecolors)]
 
         self.control_scatter.set_facecolors(facecolors)
-
         self.draw_idle()
+
         return
 
 
@@ -456,19 +456,15 @@ class MplGraphCanvas(FigureCanvas):
         if self.dragging in self.selected_indices:
             for i in self.selected_indices:
                 new_y = new_ys[i] + dy
+                if not (5000 <= new_y <= 8000):
+                    return
                 new_ys[i] = new_y
         else:
             new_y = event.ydata
+            if not (5000 <= new_y <= 8000):
+                return
             new_ys[self.dragging] = new_y
 
-        min_curr = min(self.curve.y)
-        max_curr = max(self.curve.y)
-        min_future = min(new_ys)
-        max_future = max(new_ys)
-        # if max_future > 8000:
-        #     return
-        # if (min_future < 5900) and (min_future <= min_curr):
-        #     return
 
         # Save current state for undo before applying changes
         if getattr(self, "undo_pending", True):
