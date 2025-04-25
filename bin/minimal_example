@@ -20,9 +20,9 @@ from matplotlib.figure import Figure
 from matplotlib.widgets import RectangleSelector
 import pygame
 
-PROGRAM_NAME="stitch_made_himself_pretty_alt"
-PROGRAM_AUDIO="/Users/naddy/Source/Puppet/puppetnet-loader/inputs/stitch_made_himself_pretty/stitch_made_himself_pretty.mp3"
-PROGRAM_FILE="/Users/naddy/Source/Puppet/puppetnet-loader/inputs/stitch_made_himself_pretty/stitch_made_himself_pretty.json"
+PROGRAM_NAME="weeee_alt"
+PROGRAM_AUDIO="/Users/naddy/Source/Puppet/puppetnet-loader/inputs/weeee/weeee.mp3"
+PROGRAM_FILE="/Users/naddy/Source/Puppet/puppetnet-loader/inputs/weeee/weeee.json"
 
 PROGRAM_FILE_2 = (Path(PROGRAM_FILE).parent.parent / PROGRAM_NAME) / (PROGRAM_NAME + ".json")
 PROGRAM_AUDIO_2 = (Path(PROGRAM_FILE).parent.parent / PROGRAM_NAME) / (PROGRAM_NAME + Path(PROGRAM_AUDIO).suffix)
@@ -147,7 +147,7 @@ class MplGraphCanvas(FigureCanvas):
         self.ax = self.fig.add_subplot(111)
 
         self.ax.axhline(8000, color='lightgrey', linewidth=1, linestyle='--', zorder=0)
-        self.ax.axhline(5000, color='lightgrey', linewidth=1, linestyle='--', zorder=0)
+        self.ax.axhline(5900, color='lightgrey', linewidth=1, linestyle='--', zorder=0)
 
         self.curve = PlottedCurve(np.linspace(0, 10, 100), np.sin(np.linspace(0, 10, 100)))
         self.line, = self.ax.plot(self.curve.x, self.curve.y, color='dimgray', linestyle='-')
@@ -157,6 +157,7 @@ class MplGraphCanvas(FigureCanvas):
 
         self.selected_indices = []
         self.last_selected_indices = []
+        self.range_indices = []
 
         self.selector = RectangleSelector(
             self.ax,
@@ -182,18 +183,19 @@ class MplGraphCanvas(FigureCanvas):
     def record_history(self):
         return self.undo_manager.record_history(
             curve=self.curve,
-            selected=self.selected_indices
+            selected=self.selected_indices,
+            fps=self.fps,
         )
 
     def undo(self):
-        (self.curve, self.selected_indices) = (
-            self.undo_manager.undo(curve=self.curve, selected=self.selected_indices)
+        (self.curve, self.selected_indices, self.fps) = (
+            self.undo_manager.undo(curve=self.curve, selected=self.selected_indices, fps=self.fps)
         )
         return None
 
     def redo(self):
-        (self.curve, self.selected_indices) = (
-            self.undo_manager.redo(curve=self.curve, selected=self.selected_indices)
+        (self.curve, self.selected_indices, self.fps) = (
+            self.undo_manager.redo(curve=self.curve, selected=self.selected_indices, fps=self.fps)
         )
         return
 
@@ -236,11 +238,6 @@ class MplGraphCanvas(FigureCanvas):
         self.update_view()
 
         return
-
-
-
-
-
 
     def update_view(self):
         self.ax.relim()
@@ -293,6 +290,15 @@ class MplGraphCanvas(FigureCanvas):
                 self.insert_point_at_start()
             else:
                 self.delete_point_at_start()
+
+
+        elif text == '1':
+            self.upload_and_play_program(tempo=1.0)
+        elif text == '2':
+            self.upload_and_play_program(tempo=.5)
+        elif text == '3':
+            self.upload_and_play_program(tempo=.25)
+
         elif text == '`':
             import IPython as ip, emacsipython as es; ip.embed(config=es.make_ipy_conf()) ## NJA-IPYTHON
         elif text == '+':
@@ -346,7 +352,7 @@ class MplGraphCanvas(FigureCanvas):
         self.line.set_data(self.curve.x, self.curve.y)
         self.ax.relim()
         self.ax.autoscale_view(scalex=True, scaley=False)
-        self.ax.set_ylim(4000, 8000)
+        self.ax.set_ylim(5000, 8000)
         self.update_control_display()
         self.draw_idle()
 
@@ -387,13 +393,17 @@ class MplGraphCanvas(FigureCanvas):
 
 
     def highlight_selected(self):
+
         if not self.selected_indices:
             self.control_scatter.set_facecolors('black')
             self.draw_idle()
             return
 
-        facecolors = ['green' if i in self.selected_indices else 'black' for i in range(len(self.curve.x))]
+        facecolors = ['green' if ndx in self.selected_indices else 'black' for ndx in range(len(self.curve.x))]
+        facecolors = ['blue' if ndx in self.range_indices else color for (ndx, color) in enumerate(facecolors)]
+
         self.control_scatter.set_facecolors(facecolors)
+
         self.draw_idle()
         return
 
@@ -402,16 +412,26 @@ class MplGraphCanvas(FigureCanvas):
         if self.mode != "click" or event.inaxes != self.ax:
             return
 
+        self.record_history()
+
+        # Selected point
         x_click = event.xdata
         idx = np.argmin(np.abs(self.curve.x - x_click))
         self.dragging = idx
         self.last_drag_y = event.ydata
 
+        # What do we do with it
         if self.shift_down:
             if idx in self.selected_indices:
                 self.selected_indices.remove(idx)
             else:
                 self.selected_indices.append(idx)
+        elif self.ctrl_down:
+            if idx in self.range_indices:
+                self.range_indices.remove(idx)
+            else:
+                self.range_indices.append(idx)
+                self.range_indices = self.range_indices[-2:]
         else:
             # self.selected_indices = [idx]
             self.undo_pending = True  # record undo once on first drag
@@ -430,23 +450,30 @@ class MplGraphCanvas(FigureCanvas):
         dy = event.ydata - self.last_drag_y
         self.last_drag_y = event.ydata
 
-        # Save current state for undo before applying changes
-        if getattr(self, "undo_pending", True):
-            self.record_history()
-            self.undo_pending = False
-
+        # Fix this NJA
+        # Figure out the new curve in advance.
         new_ys = self.curve.y.copy()
         if self.dragging in self.selected_indices:
             for i in self.selected_indices:
                 new_y = new_ys[i] + dy
-                if not (5000 <= new_y <= 8000):
-                    return  # abort drag if any point goes out of bounds
                 new_ys[i] = new_y
         else:
             new_y = event.ydata
-            if not (5000 <= new_y <= 8000):
-                return
             new_ys[self.dragging] = new_y
+
+        min_curr = min(self.curve.y)
+        max_curr = max(self.curve.y)
+        min_future = min(new_ys)
+        max_future = max(new_ys)
+        # if max_future > 8000:
+        #     return
+        # if (min_future < 5900) and (min_future <= min_curr):
+        #     return
+
+        # Save current state for undo before applying changes
+        if getattr(self, "undo_pending", True):
+            self.record_history()
+            self.undo_pending = False
 
         self.curve.y = new_ys
         self.line.set_ydata(self.curve.y)
@@ -467,6 +494,54 @@ class MplGraphCanvas(FigureCanvas):
         self.draw_idle()
         return
 
+    def upload_and_play_program(self, tempo=1.0):
+        self.save_to_csv(tempo=tempo)
+
+        print(f"TEMPO: {tempo}")
+
+        time.sleep(.5)
+        subprocess.run(["./bin/compile-animation", PROGRAM_FILE_2, PROGRAM_AUDIO_2, PROGRAM_DIR_2, "--force", "--frame-rate", str(self.fps)])
+
+        if tempo != 1.0:
+            name = PROGRAM_DIR_2 / PROGRAM_AUDIO_2.name
+            shutil.copy2(PROGRAM_AUDIO_2, str(PROGRAM_DIR_2 / PROGRAM_AUDIO_2.name) + ".bak")
+
+            result = subprocess.run(["sox", name, str(name) + ".new.mp3", "tempo", f"{tempo}"])
+            shutil.copy2(str(name) + ".new.mp3", str(name))
+            os.remove(str(name) + ".new.mp3")
+            time.sleep(1.0)
+
+        subprocess.run(["bin/upload-program", PROGRAM_DIR_2])
+        time.sleep(1.0)
+        subprocess.run(["./bin/dev_cmd", "PUPPET_01", "play", PROGRAM_NAME])
+        return
+
+    def save_to_csv(self, tempo=1.0):
+        output = {}
+        output["servos"] = json.loads(open(PROGRAM_FILE).read())["servos"]
+        servo_name = list(json.loads(open(PROGRAM_FILE).read())["servos"].keys())[0]
+
+        output["history"] = [
+            {"frame": frame * 1/tempo, "servos": {servo_name: {"triangle": 0.0, "servo": int(val)}}}
+            for frame, val in enumerate(self.curve.y, 1)
+        ]
+
+        prog_dir = (Path(PROGRAM_FILE).parent.parent / PROGRAM_NAME)
+        prog_dir.mkdir(parents=True, exist_ok=True)
+
+        outf_name = (Path(PROGRAM_FILE).parent.parent / PROGRAM_NAME) / (PROGRAM_NAME + ".json")
+
+        with open(outf_name, 'w') as outf:
+            outf.write(json.dumps(output))
+
+        output_audio_f = (Path(PROGRAM_FILE).parent.parent / PROGRAM_NAME) / (PROGRAM_NAME + Path(PROGRAM_AUDIO).suffix)
+
+        print(f"Copying {PROGRAM_AUDIO} to {output_audio_f}")
+        shutil.copy2(PROGRAM_AUDIO, output_audio_f)
+        return
+
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -480,7 +555,7 @@ class MainWindow(QMainWindow):
         self.canvas.keyReleaseEvent = self.canvas.key_release_event
 
         self.save_button = QPushButton("Save")
-        self.save_button.clicked.connect(self.upload_and_play_program)
+        self.save_button.clicked.connect(self.canvas.upload_and_play_program)
 
         self.load_button = QPushButton("Load")
         self.load_button.clicked.connect(self.load_from_csv)
@@ -512,37 +587,6 @@ class MainWindow(QMainWindow):
             self.toggle_button.setText("Switch to Select Mode")
             self.canvas.selector.set_active(False)
 
-
-    def upload_and_play_program(self):
-        self.save_to_csv()
-        subprocess.run(["./bin/compile-animation", PROGRAM_FILE_2, PROGRAM_AUDIO, PROGRAM_DIR_2, "--force", "--frame-rate", str(self.canvas.fps)])
-        subprocess.run(["bin/upload-program", PROGRAM_DIR_2])
-        subprocess.run(["./bin/dev_cmd", "PUPPET_01", "play", PROGRAM_NAME])
-        return
-
-
-
-
-    def save_to_csv(self):
-        output = {}
-        output["servos"] = json.loads(open(PROGRAM_FILE).read())["servos"]
-        servo_name = list(json.loads(open(PROGRAM_FILE).read())["servos"].keys())[0]
-        output["history"] = [
-            {"frame": frame, "servos": {servo_name: {"triangle": 0.0, "servo": int(val)}}}
-            for frame, val in enumerate(self.canvas.curve.y, 1)
-        ]
-
-        prog_dir = (Path(PROGRAM_FILE).parent.parent / PROGRAM_NAME)
-        prog_dir.mkdir(parents=True, exist_ok=True)
-
-        outf_name = (Path(PROGRAM_FILE).parent.parent / PROGRAM_NAME) / (PROGRAM_NAME + ".json")
-
-        with open(outf_name, 'w') as outf:
-            outf.write(json.dumps(output))
-
-        output_audio_f = (Path(PROGRAM_FILE).parent.parent / PROGRAM_NAME) / (PROGRAM_NAME + Path(PROGRAM_AUDIO).suffix)
-        shutil.copy2(PROGRAM_AUDIO, output_audio_f)
-        return
 
     def load_file(self, fname):
         data = json.loads(open(fname).read())
