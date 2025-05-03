@@ -16,14 +16,15 @@ import time
 import socket
 from puppet.network import get_puppetnet_ip_address, get_my_ip_address, send_msg_to_head
 from argparse import ArgumentParser
+import os
 
 def main(dest, command_name, value):
+
+    host = os.environ.get("PUPPETNET_IP", '192.168.4.1')
 
     command = {"dest": dest,"_type": "cmd", "cmd":{"name": command_name, "state": value}}
 
     myip = get_my_ip_address()
-    host = '192.168.4.1' if '.4.' in myip else '192.168.1.186'
-    host = '192.168.4.1'
     print(f"Sending to host {host}")
     send_msg_to_head(command, host=host)
     #send_msg_to_head(command, host='192.168.4.1')

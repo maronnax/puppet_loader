@@ -4,13 +4,18 @@ This code is designed to run on OSX or Linux systems.
 
 # Prerequisites
 
-This should run nearly out of the box.
+This should work on any OSX (tested) or linux system. The main
+prerequisites is that you must have ffmpeg installed on the command line.
 
-If you are on OSX, you will have to install brew (follow the
-instructions here: https://brew.sh/) if it is not already installed (type `brew -v` on
-the command line; if that works you're good).
+Unfortunately this is a system specific process and is not easily
+done.  One easier way (tested on OSX) would be to go to
+`https://ffmpeg.org/download.html`, click the icon that belongs to
+your system and install it.
 
-Otherwise you will have to make sure the 'ffmpeg' is installed in your command line - it should be readily available.
+If you do this, you will to configure your installation location/PATH variable so that
+
+
+
 
 # Installing
 

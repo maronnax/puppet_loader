@@ -20,15 +20,29 @@ from matplotlib.figure import Figure
 from matplotlib.widgets import RectangleSelector
 import pygame
 
-PROGRAM_NAME="weeee_alt"
-PROGRAM_AUDIO="/Users/naddy/Source/Puppet/puppetnet-loader/inputs/weeee/weeee.mp3"
-PROGRAM_FILE="/Users/naddy/Source/Puppet/puppetnet-loader/inputs/weeee/weeee.json"
+PROGRAM_NAME="bye_bye_2_alt"
+PROGRAM_AUDIO="/Users/naddy/Source/Puppet/puppetnet-loader/inputs/bye_bye_2/bye_bye_2.mp3"
+PROGRAM_FILE="/Users/naddy/Source/Puppet/puppetnet-loader/inputs/bye_bye_2/bye_bye_2.json"
 
 PROGRAM_FILE_2 = (Path(PROGRAM_FILE).parent.parent / PROGRAM_NAME) / (PROGRAM_NAME + ".json")
 PROGRAM_AUDIO_2 = (Path(PROGRAM_FILE).parent.parent / PROGRAM_NAME) / (PROGRAM_NAME + Path(PROGRAM_AUDIO).suffix)
 PROGRAM_DIR_2 = Path(PROGRAM_FILE).parent.parent.parent / "outputs"/ "programs" / PROGRAM_NAME
 
 assert PROGRAM_NAME not in PROGRAM_AUDIO, "You're probably using the wrong program name!"
+
+def send_servo(ndx, yval):
+    host = os.environ.get("PUPPETNET_IP", '192.168.4.1')
+    port = 12345
+
+    udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp_sock.bind(('', port))
+    packet = {'dest': 'PUPPET_01', '_type': 'cmd', 'cmd': {'name': 'servo_0', 'state': int(yval)}}
+    print(f"Sending packet: {packet}")
+    command = json.dumps(packet)
+    udp_sock.sendto(command.encode(), (host, port))
+    return
+
+
 
 def play_on_puppet(frames, values, fps):
     pygame.mixer.init()
@@ -44,6 +58,7 @@ def play_on_puppet(frames, values, fps):
     next_frame = time.time()
 
     packet = {'dest': 'PUPPET_01', '_type': 'cmd', 'cmd': {'name': 'servo_0', 'state': None}}
+
 
     pygame.mixer.music.play()
     for pt in values:
@@ -441,6 +456,13 @@ class MplGraphCanvas(FigureCanvas):
         return
 
     def on_drag(self, event):
+
+        if self.mode == "click":
+            # Send signal to puppet
+            send_servo(0, event.ydata)
+
+
+
         if self.mode != "click" or self.dragging is None or event.inaxes != self.ax:
             return
 

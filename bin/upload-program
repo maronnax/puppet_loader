@@ -19,6 +19,9 @@ def main(program_path, puppet_name, puppetnet_host):
     audio_file = None
 
     non_animation_files = [x for x in program_path.glob('*') if not x.name.startswith(".") and not x.name == f"{program}.txt"]
+    non_animation_files = [x for x in non_animation_files if x.name.endswith("mp3")]
+
+
     if len(non_animation_files) == 1:
         audio_file = non_animation_files[0]
     elif len(non_animation_files) == 0:
@@ -26,7 +29,14 @@ def main(program_path, puppet_name, puppetnet_host):
     else:
         print("Multiple possible audio files: {','.join(non_animation_files)}")
 
-    assert program_file.exists()
+
+    upload_animation = program_file.exists()
+    upload_audio = audio_file.exists()
+
+    if not (upload_animation or upload_audio):
+        print("No files!")
+        sys.exit(1)
+
     print(f"Looking for host {puppetnet_host}")
     result = get_puppetnet_ip_address(puppet_name, host=puppetnet_host)
     dest_ip = result["ip"]
@@ -34,7 +44,6 @@ def main(program_path, puppet_name, puppetnet_host):
 
     dest_subnet = ".".join(dest_ip.split(".")[:3])
     my_subnet = ".".join(myip.split(".")[:3])
-
 
     if dest_subnet != my_subnet:
         print("Not on the same network.  You're probably on local wifi and need to be on puppetnet")
@@ -53,20 +62,23 @@ def main(program_path, puppet_name, puppetnet_host):
     print('\t' + ' '.join(curl_animation_delete_command))
     subprocess.run(curl_animation_delete_command)
 
-    print(f"Sending program {program} to {dest_ip}")
-    curl_animation_upload_command = [
-        "curl",
-        "-F",
-        f"file=@{program_file}",
-        f"http://{dest_ip}/upload?program={program}&type=animation",
-    ]
-
-    print("Running command:")
-    print('\t' + ' '.join(curl_animation_upload_command))
-
     start_time = time.time()
-    subprocess.run(curl_animation_upload_command)
-    if audio_file:
+
+    if upload_animation:
+        print(f"Sending program {program} to {dest_ip}")
+        curl_animation_upload_command = [
+            "curl",
+            "-F",
+            f"file=@{program_file}",
+            f"http://{dest_ip}/upload?program={program}&type=animation",
+        ]
+
+        print("Running command:")
+        print('\t' + ' '.join(curl_animation_upload_command))
+
+        subprocess.run(curl_animation_upload_command)
+
+    if upload_audio:
         curl_audio_upload_command = [
             "curl",
             "-F",
@@ -78,11 +90,15 @@ def main(program_path, puppet_name, puppetnet_host):
         print('\t' + ' '.join(curl_audio_upload_command))
 
         subprocess.run(curl_audio_upload_command)
+
     end_time = time.time()
 
-    file_size = program_file.stat().st_size / 1024
+    file_size = 0
 
-    if audio_file:
+    if upload_animation:
+        file_size = program_file.stat().st_size / 1024
+
+    if upload_audio:
         file_size += audio_file.stat().st_size / 1024
 
     upload_rate = file_size/(end_time-start_time)
